@@ -1,0 +1,98 @@
+1.	Kurzbeschreibung der Schulungsmaßnahme
+1.1. Sicherheitshinweise
+1.2. Definitionen & Fachbegriffe
+1.3. Aufgaben Produktionshelferin
+1.4. Aufgaben Maschinenbedienerin
+2.	Übersicht der Produktionsanlagen
+2.1.	Arbeitsplatz
+2.2.	Sauberkeit am Arbeitsplatz
+2.3.	Ordnung in der Produktion
+3.	Beschreibung der Hilfsmaschinen
+4.	Verhalten im Störfall
+4.1.	Aufrichterstörung
+4.2.	Markenleserstörung
+4.3.	Umreiferstörung
+4.4.	Packautomatenstörung
+4.5.	Störung Etikettierer
+5.	Artikelvarianten
+6.	Arbeit an der Druckmaschine K15 CNC
+6.1.	Beschreibung der Druckmaschine
+6.2.	Maschine einschalten und Nullpunkte setzen
+6.3.	Maschinenübersicht
+6.4.	UV-Trocknung und Farbhaftung
+6.5.	Rüstvorgang Intern Checkliste
+6.5.1.	Siebschablone ein- und ausbauen
+6.5.2.	Nutzung der Arbeitstische
+6.5.3.	Farbmanagement am Arbeitsplatz
+6.6.	Rüstvorgang Extern Checkliste
+6.7.	Einrichtvorgang K9 Methode
+6.7.1.	Druckanfang korrigieren
+6.7.2.	Y Links, Y Rechts einstellen
+6.7.3.	Druckbild drehen
+6.7.4.	Druckbildüberlauf einstellen
+6.7.5.	CMYK-Fotodruck einstellen
+6.7.6.	Fehlerbilder und Lösungen
+6.8.	Setup Druckbildkontrolle 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6.9.	Störungen Allgemein
+6.9.1.	Maschine läuft mit Reduziertem Takt
+6.9.2.	Artikelzuführung kontrollieren
+6.9.3.	Serienfehler Markenleser
+6.9.4.	Serienfehler Druckbildkontrolle
+6.9.5.	Sammelwarnung Achse
+6.9.6.	Artikelausgabe Haube auf
+6.9.7.	Momentgrenze überschritten
+6.10.	 Störungen Eingabe
+6.10.1.	Artikel nicht aufgedornt
+6.10.2.	Aufdornzylinder blockiert
+6.10.3.	Aufdornzylinder nicht in Grundstellung
+6.11.	 Störungen Ausgabe
+6.11.1.	Artikel nicht abgenommen
+6.11.2.	Artikel nicht abgedornt
+6.11.3.	Grundstellung Zange prüfen
+6.12.	Rakel & Schlepprakel
+6.12.1.	Rakelgummi Zustand und Wechsel
+6.12.2.	Rakelstellung
+6.12.3.	Winkeleinstellung Druckrakel
+6.12.4.	Schlepprakel
+6.12.5.	Probleme
+6.13.	Benutzeroberfläche
+6.13.1.	Maschinenübersicht
+6.13.2.	Mausmenü
+6.13.3.	Druckwerksmenü
+6.13.4.	Fehler Quittieren
+6.13.5.	Rakelgummi (Rakeldruck)
+6.13.6.	Siebverstellung x, y
+6.13.7.	Siebabsprung
+6.13.8.	Drucklänge
+6.13.9.	Rakelposition
+6.13.10.	Farbzuführung
+7.	100% Selbstkontrolle
+7.1.	 Proof mit Kartusche abgleichen
+7.2.	 Filmkopien mit Druckbild vergleichen
+7.3.	 Artikelart prüfen 
+7.4.	 Einbaumaß prüfen
+7.5.	 12 Uhr Passerstellung prüfen
+7.6.	 Beschreibung Druckauftrag mit Druckbild abgleichen
+7.7.	 Farbtöne mit Farbfächer prüfen
+7.8.	 Checkliste Ausfüllen 
+7.9.	 Freigabe
+8.	Sonstiges
+8.1.	Regelmäßige Kontrollen
+8.2.	Handschüttung
+8.3.	Schichtübergabe Ende
+8.4.	Schichtübergabe Start
+8.5.	Farbe mischen

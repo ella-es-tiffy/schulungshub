@@ -1,0 +1,9 @@
+node_modules/
+tmp/
+output/
+.DS_Store
+*.db
+__pycache__/
+.pycache/
+data/
+scripts/

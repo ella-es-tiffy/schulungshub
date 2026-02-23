@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light" class="font-m">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SchulungsHub · Siebdruck</title>
+
+  <!-- UIkit 3 (lokal) -->
+  <link rel="stylesheet" href="vendor/uikit.min.css">
+  <script src="vendor/uikit.min.js"></script>
+  <script src="vendor/uikit-icons.min.js"></script>
+
+  <!-- Markdown Parser (lokal) -->
+  <script src="vendor/marked.min.js"></script>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── HEADER ── -->
+  <header class="app-header">
+    <div class="brand-wrap">
+      <button class="mobile-hamburger" id="mobile-toggle" type="button" aria-label="Menü">
+        <span uk-icon="icon: menu"></span>
+      </button>
+      <div>
+        <p class="brand-title">Schulungs<span>Hub</span></p>
+        <p class="brand-sub">Siebdruck</p>
+      </div>
+    </div>
+
+    <nav class="header-nav" id="header-nav">
+      <a class="header-nav-link" data-target="sec-dashboard">Übersicht</a>
+      <a class="header-nav-link" data-target="sec-phase-P1">Bewertung</a>
+      <a class="header-nav-link hidden" id="nav-daten" data-target="sec-daten">Daten</a>
+    </nav>
+
+    <div class="header-actions">
+      <!-- Trainee Selector (admin/trainer) -->
+      <select id="trainee-select" class="trainee-select hidden" aria-label="Azubi auswählen"></select>
+
+      <!-- Font Size -->
+      <div class="font-switcher" role="group" aria-label="Schriftgröße">
+        <button type="button" data-font="S" title="Klein">S</button>
+        <button type="button" data-font="M" class="active" title="Mittel">M</button>
+        <button type="button" data-font="L" title="Groß">L</button>
+      </div>
+
+      <!-- Theme -->
+      <button class="theme-toggle" id="theme-toggle" type="button" title="Dark/Light Mode" aria-label="Design umschalten">
+        <span class="theme-icon" id="theme-icon">☀</span>
+      </button>
+
+      <!-- Save Button -->
+      <button class="save-btn" id="save-btn" type="button" title="Datenbank speichern" aria-label="Speichern">
+        <span uk-icon="icon: push; ratio:0.85"></span>
+        <span class="save-label">Speichern</span>
+      </button>
+
+      <!-- Save Status -->
+      <div class="save-status" id="save-status" data-state="saved" title="Speicherstatus">
+        <span class="save-dot"></span>
+        <span id="save-label">Gespeichert</span>
+      </div>
+
+      <!-- User Menu -->
+      <div class="user-menu-wrap">
+        <div class="user-chip" id="user-chip" role="button" tabindex="0">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <div class="user-info">
+            <span class="user-name" id="user-name">–</span>
+            <span class="user-role" id="user-role"></span>
+            <span class="session-timer" id="session-timer"></span>
+          </div>
+        </div>
+        <div class="user-dropdown hidden" id="user-dropdown">
+          <a class="user-dropdown-item" id="menu-add-user"><span uk-icon="icon: plus-circle; ratio:0.75"></span> Benutzer anlegen</a>
+          <a class="user-dropdown-item" id="menu-manage-users"><span uk-icon="icon: users; ratio:0.75"></span> Benutzer ändern</a>
+          <div class="user-dropdown-divider"></div>
+          <a class="user-dropdown-item user-dropdown-logout" id="menu-logout"><span uk-icon="icon: sign-out; ratio:0.75"></span> Abmelden</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MOBILE OVERLAY ── -->
+  <div class="mobile-overlay" id="mobile-overlay"></div>
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="app-sidebar" id="sidebar">
+    <!-- Populated by JS -->
+  </aside>
+
+  <!-- ── CONTENT ── -->
+  <main class="content-pane" id="content-pane">
+    <div class="loading-wrap" id="loading-spinner">
+      <div class="spinner"></div>
+      <p class="text-muted" style="margin-top:12px; font-size:13px;">Lade Daten...</p>
+    </div>
+  </main>
+
+  <!-- ── ADMIN DIALOG ── -->
+  <dialog id="admin-dialog" class="login-dialog">
+    <form method="dialog" class="login-form" id="admin-form">
+      <h2>Neuen Schüler anlegen</h2>
+      <div class="form-row">
+        <input type="text" name="vorname" placeholder="Vorname" required>
+        <input type="text" name="nachname" placeholder="Nachname" required>
+      </div>
+      <select name="role" id="admin-role-select">
+        <option value="trainee">Schüler / Trainee</option>
+        <option value="trainer">Trainer</option>
+        <option value="admin">Admin</option>
+      </select>
+
+      <div class="form-section-label">RFID (optional)</div>
+      <input type="text" name="rfid_tag" placeholder="RFID-Tag scannen..." autocomplete="off">
+      <p class="form-hint">Passwort ist automatisch <code>start123</code> – wird beim ersten Login geändert.</p>
+
+      <div class="flex justify-between" style="margin-top:8px">
+        <button type="button" class="btn-secondary btn-sm" onclick="this.closest('dialog').close()">Abbrechen</button>
+        <button type="submit" class="btn-primary btn-sm">Schüler anlegen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ── THEME REVEAL OVERLAY ── -->
+  <div class="theme-reveal-overlay" id="theme-reveal"></div>
+
+  <!-- ── SCROLL TO TOP ── -->
+  <button class="scroll-top-btn" id="scroll-top" type="button" title="Nach oben" aria-label="Zum Anfang scrollen">
+    <span uk-icon="icon: chevron-up; ratio: 0.85"></span>
+  </button>
+
+  <!-- ── CHANGE PASSWORD DIALOG ── -->
+  <dialog id="changepw-dialog" class="login-dialog">
+    <form method="dialog" class="login-form" id="changepw-form">
+      <h2>Passwort ändern</h2>
+      <p>Bitte wähle ein neues Passwort (min. 8 Zeichen).</p>
+      <div class="pw-wrap">
+        <input type="password" id="changepw-new" placeholder="Neues Passwort" required minlength="8">
+        <button type="button" class="pw-toggle" data-target="changepw-new" tabindex="-1" aria-label="Passwort anzeigen">&#9673;</button>
+      </div>
+      <div class="pw-wrap">
+        <input type="password" id="changepw-confirm" placeholder="Passwort bestätigen" required minlength="8">
+        <button type="button" class="pw-toggle" data-target="changepw-confirm" tabindex="-1" aria-label="Passwort anzeigen">&#9673;</button>
+      </div>
+      <div class="error-text" id="changepw-error" aria-live="polite"></div>
+      <button type="submit" class="btn-primary" style="width:100%">Passwort speichern</button>
+    </form>
+  </dialog>
+
+  <!-- ── USER MANAGEMENT DIALOG ── -->
+  <dialog id="usermgmt-dialog" class="usermgmt-dialog">
+    <div class="usermgmt-wrap">
+      <div class="usermgmt-header">
+        <h2>Benutzer verwalten</h2>
+        <button type="button" class="login-close-btn" id="usermgmt-close" title="Schliessen"><span uk-icon="icon: close; ratio:0.9"></span></button>
+      </div>
+      <div id="usermgmt-list"></div>
+    </div>
+  </dialog>
+
+  <!-- ── RFID ASSIGN DIALOG ── -->
+  <dialog id="rfid-dialog" class="rfid-dialog">
+    <div class="rfid-assign-card">
+      <h3>RFID zuweisen</h3>
+      <p id="rfid-user-name"></p>
+      <p id="rfid-status-text" style="font-size:13px;opacity:0.6;margin:8px 0 16px"></p>
+      <input type="text" class="rfid-scan-input" id="rfid-scan-input" placeholder="Chip jetzt scannen..." autocomplete="off">
+      <div class="rfid-assign-actions">
+        <button class="btn-secondary btn-sm" id="rfid-cancel">Abbrechen</button>
+        <button class="btn-secondary btn-sm hidden" id="rfid-remove" style="color:var(--error)">Entfernen</button>
+        <button class="btn-primary btn-sm" id="rfid-save" disabled>Speichern</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ── HIDDEN FILE INPUT (Sync) ── -->
+  <input type="file" id="import-file-input" accept=".json,application/json" hidden>
+
+  <!-- ── SCRIPTS ── -->
+  <script src="wasm-seed.js"></script>
+  <script src="vendor/sql-wasm.js"></script>
+  <script src="data-seed.js"></script>
+  <script src="db-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

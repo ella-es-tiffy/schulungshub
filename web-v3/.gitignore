@@ -1,0 +1,9 @@
+# Generated files (rebuild with node scripts)
+wasm-seed.js
+data-seed.js
+
+# Runtime database
+data.db
+
+# Dependencies
+node_modules/

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SchulungsHub – Anmelden</title>
+  <link rel="stylesheet" href="vendor/uikit.min.css">
+  <style>
+    /* ── Fonts ── */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 400 800;
+      font-display: swap;
+      src: url(vendor/fonts/inter-latin.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: normal;
+      font-weight: 400 800;
+      font-display: swap;
+      src: url(vendor/fonts/jetbrains-latin.woff2) format('woff2');
+    }
+
+    /* ── Tokens ── */
+    :root {
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --text: #333333;
+      --text-muted: #888888;
+      --heading: #1a1a1a;
+      --accent: #1e87f0;
+      --accent-hover: #0d6edb;
+      --border: rgba(0,0,0,0.08);
+      --error: #ef4444;
+    }
+    [data-theme="dark"] {
+      --bg: #0e0e0e;
+      --card: #1a1a1a;
+      --text: #cfcfcf;
+      --text-muted: #777777;
+      --heading: #ffffff;
+      --accent: #4da3f7;
+      --accent-hover: #6db6ff;
+      --border: rgba(255,255,255,0.08);
+    }
+
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* ── Login Container ── */
+    .login-container {
+      width: 100%;
+      max-width: 400px;
+      animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Brand ── */
+    .brand {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .brand-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      color: var(--heading);
+      line-height: 1;
+    }
+
+    .brand-title span {
+      color: var(--accent);
+    }
+
+    .brand-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ── Card ── */
+    .login-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+    }
+
+    .login-card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--heading);
+      margin-bottom: 4px;
+    }
+
+    .login-card .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* ── Form ── */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-select,
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none;
+    }
+
+    .form-select:focus,
+    .form-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(30, 135, 240, 0.12);
+    }
+
+    .form-select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn-login:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-login:active {
+      transform: scale(0.98);
+    }
+
+    .error-text {
+      font-size: 13px;
+      color: var(--error);
+      min-height: 20px;
+      margin-top: 8px;
+    }
+
+    /* ── RFID Hint ── */
+    .rfid-hint {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .rfid-hint p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .rfid-hint .rfid-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+
+    .rfid-pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+
+    /* ── Theme Toggle ── */
+    .theme-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s;
+      opacity: 0.6;
+    }
+
+    .theme-btn:hover { opacity: 1; }
+
+    /* ── Footer ── */
+    .login-footer {
+      text-align: center;
+      margin-top: 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      opacity: 0.5;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Hidden RFID input ── */
+    .rfid-hidden { position: fixed; left: -9999px; opacity: 0; }
+
+    /* ── Loading state ── */
+    .btn-login.loading {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* ── Password Toggle ── */
+    .pw-wrap {
+      position: relative;
+    }
+    .pw-wrap .form-input {
+      padding-right: 42px;
+    }
+    .pw-toggle {
+      position: absolute;
+      right: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--text-muted);
+      opacity: 0.5;
+      transition: opacity 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pw-toggle:hover { opacity: 1; }
+    .pw-toggle.visible { color: var(--accent); opacity: 0.8; }
+
+    /* ── NAS Bar (non-blocking) ── */
+    .nas-bar-login {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    [data-theme="dark"] .nas-bar-login {
+      background: #422006;
+      color: #fbbf24;
+    }
+  </style>
+</head>
+<body>
+
+  <button class="theme-btn" id="theme-btn" title="Dark/Light Mode">
+    <span id="theme-icon">&#9788;</span>
+  </button>
+
+  <div class="login-container">
+    <!-- Brand -->
+    <div class="brand">
+      <p class="brand-title">Schulungs<span>Hub</span></p>
+      <p class="brand-sub">Siebdruck</p>
+    </div>
+
+    <!-- NAS Bar (populated by JS if needed) -->
+    <div id="nas-overlay"></div>
+
+    <!-- Card -->
+    <div class="login-card">
+      <h2>Anmelden</h2>
+      <p class="subtitle">Name auswählen und Passwort eingeben.</p>
+
+      <form id="login-form" autocomplete="off">
+        <div class="form-group">
+          <label class="form-label" for="login-user">Benutzer</label>
+          <select class="form-select" id="login-user">
+            <option value="">– Benutzer wählen –</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-pass">Passwort</label>
+          <div class="pw-wrap">
+            <input class="form-input" type="password" id="login-pass" placeholder="Passwort eingeben" autocomplete="current-password">
+            <button type="button" class="pw-toggle" data-target="login-pass" tabindex="-1" aria-label="Passwort anzeigen">&#9673;</button>
+          </div>
+        </div>
+
+        <div class="error-text" id="login-error" aria-live="polite"></div>
+        <button type="submit" class="btn-login" id="login-btn">Einloggen</button>
+      </form>
+
+      <div class="rfid-hint">
+        <div class="rfid-icon rfid-pulse">&#9879;</div>
+        <p>RFID-Tag scannen geht jederzeit.</p>
+      </div>
+    </div>
+
+    <p class="login-footer">SchulungsHub v4</p>
+  </div>
+
+  <!-- Hidden RFID listener -->
+  <input type="text" id="rfid-input" class="rfid-hidden" autocomplete="off" tabindex="-1">
+
+  <script src="wasm-seed.js"></script>
+  <script src="vendor/sql-wasm.js"></script>
+  <script src="data-seed.js"></script>
+  <script src="db-engine.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>
