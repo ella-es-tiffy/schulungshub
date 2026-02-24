@@ -898,6 +898,7 @@ function buildDashboardHtml() {
           ${canAdmin() ? '<button class="btn-secondary btn-sm" id="btn-exam-editor" type="button" style="margin-left:8px">Fragen verwalten</button>' : ""}
           <span class="exam-question-count" id="exam-q-count"></span>
           ${buildExamHistory()}
+          ${canVerify() ? '<button class="btn-secondary btn-sm" id="btn-exam-analysis" type="button" style="margin-top:10px">Schwächenanalyse</button>' : ""}
         </div>
         ${canVerify() ? '<button class="btn-primary btn-sm" id="btn-report" type="button" style="margin-top:20px">Bericht erstellen</button>' : ""}
       </div>
@@ -1142,6 +1143,9 @@ function bindPageEvents() {
   if (examStartBtn) examStartBtn.addEventListener("click", startExam);
   const examEditorBtn = $("#btn-exam-editor");
   if (examEditorBtn) examEditorBtn.addEventListener("click", openExamEditor);
+
+  const examAnalysisBtn = $("#btn-exam-analysis");
+  if (examAnalysisBtn) examAnalysisBtn.addEventListener("click", openExamAnalysis);
 
   // Show question count
   const qCount = $("#exam-q-count");
@@ -2835,6 +2839,209 @@ function openExamEditor() {
       qCount.textContent = cnt > 0 ? `${cnt} Fragen im Pool` : "Noch keine Fragen";
     }
   });
+}
+
+/* ── Exam Analysis ── */
+
+function openExamAnalysis() {
+  const tid = S.selectedTraineeId || S.user?.id;
+  if (!tid) return;
+
+  const trainee = userName(tid);
+  const results = DbEngine.queryAll("SELECT * FROM exam_results WHERE trainee_id = ? ORDER BY finished_at ASC", [tid]);
+
+  if (!results.length) {
+    UIkit.notification({ message: "Noch keine Prüfungen vorhanden.", status: "warning", pos: "top-center" });
+    return;
+  }
+
+  // Parse all answers across all exams
+  const allAnswers = []; // { question_id, correct, exam_date }
+  results.forEach(r => {
+    const ans = JSON.parse(r.answers || "[]");
+    ans.forEach(a => allAnswers.push({ ...a, exam_date: r.finished_at, exam_id: r.id }));
+  });
+
+  // Load all question metadata
+  const qMap = {};
+  DbEngine.queryAll("SELECT q.*, cs.title AS section_title FROM exam_questions q LEFT JOIN content_sections cs ON q.section_id = cs.id").forEach(q => {
+    qMap[q.id] = q;
+  });
+
+  // Aggregate per question: how often wrong vs total
+  const qStats = {}; // { [qId]: { question, phase, section, total, wrong } }
+  allAnswers.forEach(a => {
+    if (!qStats[a.question_id]) {
+      const q = qMap[a.question_id];
+      qStats[a.question_id] = {
+        question: q?.question || "(gelöscht)",
+        phase: q?.phase || "–",
+        section: q?.section_title || "–",
+        total: 0,
+        wrong: 0,
+      };
+    }
+    qStats[a.question_id].total++;
+    if (!a.correct) qStats[a.question_id].wrong++;
+  });
+
+  // Sort by error rate desc
+  const qRanked = Object.entries(qStats)
+    .map(([id, s]) => ({ id, ...s, errorRate: s.total > 0 ? s.wrong / s.total : 0 }))
+    .filter(q => q.wrong > 0)
+    .sort((a, b) => b.errorRate - a.errorRate || b.wrong - a.wrong);
+
+  // Aggregate per phase
+  const phaseStats = {};
+  allAnswers.forEach(a => {
+    const q = qMap[a.question_id];
+    const ph = q?.phase || "–";
+    if (!phaseStats[ph]) phaseStats[ph] = { total: 0, wrong: 0 };
+    phaseStats[ph].total++;
+    if (!a.correct) phaseStats[ph].wrong++;
+  });
+
+  const phaseRanked = Object.entries(phaseStats)
+    .map(([phase, s]) => ({ phase, ...s, errorRate: s.total > 0 ? s.wrong / s.total : 0 }))
+    .sort((a, b) => b.errorRate - a.errorRate);
+
+  // Aggregate per section
+  const secStats = {};
+  allAnswers.forEach(a => {
+    const q = qMap[a.question_id];
+    const sec = q?.section_title || "Ohne Zuordnung";
+    if (!secStats[sec]) secStats[sec] = { total: 0, wrong: 0 };
+    secStats[sec].total++;
+    if (!a.correct) secStats[sec].wrong++;
+  });
+
+  const secRanked = Object.entries(secStats)
+    .map(([section, s]) => ({ section, ...s, errorRate: s.total > 0 ? s.wrong / s.total : 0 }))
+    .filter(s => s.wrong > 0)
+    .sort((a, b) => b.errorRate - a.errorRate);
+
+  // Trend (score over time)
+  let trendHtml = "";
+  results.forEach((r, i) => {
+    const pct = Math.round((r.score / r.total) * 100);
+    const date = r.finished_at ? new Date(r.finished_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "–";
+    const passed = r.passed;
+    trendHtml += `<div class="ea-trend-item">
+      <span class="ea-trend-date">${date}</span>
+      <div class="ea-trend-bar-track">
+        <div class="ea-trend-bar-fill ${passed ? "ea-bar-pass" : "ea-bar-fail"}" style="width:${pct}%"></div>
+      </div>
+      <span class="ea-trend-pct ${passed ? "er-val-ok" : "er-val-err"}">${pct}%</span>
+    </div>`;
+  });
+
+  // Problem questions table
+  let qTableHtml = "";
+  if (qRanked.length === 0) {
+    qTableHtml = `<p class="ea-empty">Keine wiederkehrenden Fehler gefunden.</p>`;
+  } else {
+    qRanked.forEach(q => {
+      const errPct = Math.round(q.errorRate * 100);
+      const barW = Math.max(errPct, 4);
+      qTableHtml += `<div class="ea-q-row">
+        <div class="ea-q-info">
+          <span class="ea-q-text">${esc(q.question)}</span>
+          <span class="ea-q-meta">${esc(q.phase)} · ${esc(q.section)}</span>
+        </div>
+        <div class="ea-q-stats">
+          <span class="ea-q-count">${q.wrong}× falsch <span class="ea-q-of">/ ${q.total}</span></span>
+          <div class="ea-q-bar-track"><div class="ea-q-bar-fill" style="width:${barW}%"></div></div>
+          <span class="ea-q-pct">${errPct}%</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Phase overview
+  let phaseHtml = "";
+  phaseRanked.forEach(p => {
+    const errPct = Math.round(p.errorRate * 100);
+    phaseHtml += `<div class="ea-phase-row">
+      <span class="ea-phase-label">${esc(p.phase)}</span>
+      <div class="ea-phase-bar-track">
+        <div class="ea-phase-bar-fill" style="width:${errPct}%"></div>
+      </div>
+      <span class="ea-phase-val">${p.wrong}/${p.total} <span>(${errPct}%)</span></span>
+    </div>`;
+  });
+
+  // Section overview
+  let secHtml = "";
+  if (secRanked.length) {
+    secRanked.forEach(s => {
+      const errPct = Math.round(s.errorRate * 100);
+      secHtml += `<div class="ea-phase-row">
+        <span class="ea-phase-label ea-sec-label">${esc(s.section)}</span>
+        <div class="ea-phase-bar-track">
+          <div class="ea-phase-bar-fill" style="width:${errPct}%"></div>
+        </div>
+        <span class="ea-phase-val">${s.wrong}/${s.total} <span>(${errPct}%)</span></span>
+      </div>`;
+    });
+  }
+
+  // Build overlay
+  let ov = $("#exam-analysis-overlay");
+  if (ov) ov.remove();
+  ov = document.createElement("div");
+  ov.id = "exam-analysis-overlay";
+  ov.className = "exam-overlay exam-result-page";
+
+  const totalQ = allAnswers.length;
+  const totalWrong = allAnswers.filter(a => !a.correct).length;
+  const avgPct = results.length ? Math.round(results.reduce((s, r) => s + (r.score / r.total) * 100, 0) / results.length) : 0;
+  const passCount = results.filter(r => r.passed).length;
+
+  ov.innerHTML = `
+    <div class="er-page">
+      <div class="er-header">
+        <span class="er-title">Schwächenanalyse: ${esc(trainee)}</span>
+        <div class="er-header-actions">
+          <button class="btn-primary btn-sm" id="ea-close">Schliessen</button>
+        </div>
+      </div>
+      <div class="er-layout">
+        <aside class="er-sidebar">
+          <div class="er-stat-block ${avgPct >= EXAM_PASS_PCT ? "er-pass" : "er-fail"}">
+            <div class="er-verdict">Durchschnitt</div>
+            <div class="er-pct">${avgPct}%</div>
+          </div>
+          <div class="er-stats">
+            <div class="er-stat"><span class="er-stat-label">Prüfungen</span><span class="er-stat-val">${results.length}</span></div>
+            <div class="er-stat"><span class="er-stat-label">Bestanden</span><span class="er-stat-val er-val-ok">${passCount}</span></div>
+            <div class="er-stat"><span class="er-stat-label">Nicht best.</span><span class="er-stat-val er-val-err">${results.length - passCount}</span></div>
+            <div class="er-stat"><span class="er-stat-label">Fragen ges.</span><span class="er-stat-val">${totalQ}</span></div>
+            <div class="er-stat"><span class="er-stat-label">Davon falsch</span><span class="er-stat-val er-val-err">${totalWrong}</span></div>
+            <div class="er-stat"><span class="er-stat-label">Fehlerquote</span><span class="er-stat-val er-val-err">${totalQ ? Math.round(totalWrong / totalQ * 100) : 0}%</span></div>
+          </div>
+
+          <div class="ea-sidebar-section">
+            <h4>Verlauf</h4>
+            ${trendHtml}
+          </div>
+
+          <div class="ea-sidebar-section">
+            <h4>Fehler nach Phase</h4>
+            ${phaseHtml}
+          </div>
+        </aside>
+        <main class="er-main">
+          ${secHtml ? `<h2>Schwächen nach Themengebiet</h2>
+          <div class="ea-section-list">${secHtml}</div>` : ""}
+
+          <h2 style="${secHtml ? "margin-top:28px" : ""}">Problemfragen <span>(${qRanked.length})</span></h2>
+          <div class="ea-questions-list">${qTableHtml}</div>
+        </main>
+      </div>
+    </div>`;
+
+  document.body.appendChild(ov);
+  ov.querySelector("#ea-close").addEventListener("click", () => ov.remove());
 }
 
 /* ── End Exam Mode ── */
