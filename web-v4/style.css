@@ -456,6 +456,13 @@ a:hover { opacity: 0.8; }
   background: var(--border);
   margin: 4px 8px;
 }
+.user-dropdown-version {
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  padding: 6px 0 2px;
+  letter-spacing: 0.5px;
+}
 
 /* Trainee selector inside dropdown */
 .dropdown-trainee-wrap {
@@ -1202,6 +1209,23 @@ a:hover { opacity: 0.8; }
   font-size: 13px;
 }
 
+.ea-hist-table td { font-size: 11px; padding: 4px 6px; }
+.ea-hist-del {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 3px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ea-hist-table tr:hover .ea-hist-del { opacity: 1; }
+.ea-hist-del:hover { color: #ef4444; }
+.ea-del-all { font-size: 10px; padding: 2px 8px; margin-top: 6px; opacity: 0.5; }
+.ea-del-all:hover { opacity: 1; }
+
 /* Editor */
 .exam-editor-card {
   max-width: 700px;
@@ -1380,6 +1404,28 @@ a:hover { opacity: 0.8; }
 .exam-hist-fail { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 [data-theme="dark"] .exam-hist-pass { color: #4ade80; }
 [data-theme="dark"] .exam-hist-fail { color: #f87171; }
+
+.exam-hist-del-cell { width: 28px; text-align: center; }
+.exam-hist-del {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.exam-history-table tr:hover .exam-hist-del { opacity: 1; }
+.exam-hist-del:hover { color: #ef4444; }
+
+.exam-hist-del-all {
+  font-size: 11px;
+  padding: 3px 10px;
+  opacity: 0.6;
+}
+.exam-hist-del-all:hover { opacity: 1; }
 
 /* Nav Headers */
 .nav-header {

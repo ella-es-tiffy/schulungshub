@@ -33,7 +33,6 @@
     <nav class="header-nav" id="header-nav">
       <a class="header-nav-link" data-target="sec-dashboard">Übersicht</a>
       <a class="header-nav-link" data-target="sec-phase-P1">Bewertung</a>
-      <a class="header-nav-link" id="nav-exam" href="#" onclick="startExam(); return false;">Prüfung</a>
       <a class="header-nav-link hidden" id="nav-daten" data-target="sec-daten">Daten</a>
     </nav>
 
@@ -68,11 +67,17 @@
           <div class="dropdown-trainee-wrap hidden" id="dropdown-trainee-wrap">
             <select id="trainee-select" class="dropdown-trainee-select" aria-label="Azubi auswählen"></select>
           </div>
+          <a class="user-dropdown-item" id="menu-exam-start"><span uk-icon="icon: play; ratio:0.75"></span> Selbsttest</a>
+          <a class="user-dropdown-item" id="menu-exam-analysis"><span uk-icon="icon: file-text; ratio:0.75"></span> Prüfungsübersicht</a>
+          <a class="user-dropdown-item hidden" id="menu-exam-editor"><span uk-icon="icon: database; ratio:0.75"></span> Fragen verwalten</a>
+          <div class="user-dropdown-divider"></div>
+          <a class="user-dropdown-item hidden" id="menu-report"><span uk-icon="icon: print; ratio:0.75"></span> Bericht erstellen</a>
           <a class="user-dropdown-item" id="menu-save"><span uk-icon="icon: push; ratio:0.75"></span> Speichern</a>
           <a class="user-dropdown-item" id="menu-add-user"><span uk-icon="icon: plus-circle; ratio:0.75"></span> Benutzer anlegen</a>
           <a class="user-dropdown-item" id="menu-manage-users"><span uk-icon="icon: users; ratio:0.75"></span> Benutzer ändern</a>
           <div class="user-dropdown-divider"></div>
           <a class="user-dropdown-item user-dropdown-logout" id="menu-logout"><span uk-icon="icon: sign-out; ratio:0.75"></span> Abmelden</a>
+          <div class="user-dropdown-version" id="app-version"></div>
         </div>
       </div>
     </div>

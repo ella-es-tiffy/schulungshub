@@ -4,6 +4,7 @@
    ================================================================ */
 
 /* ── 1. Config ── */
+const APP_VERSION = "0.1.1";
 const SESSION_KEY = "schulungsHub.session";
 const PREFS_KEY   = "schulungsHub.prefs";
 const DATA_KEY    = "SchulungsHub-Siebdruck-2026";
@@ -817,31 +818,16 @@ function renderPage() {
   if (first) first.classList.add("visible");
 }
 
-function buildExamHistory() {
-  const tid = S.selectedTraineeId || S.user?.id;
-  if (!tid) return "";
-  const results = DbEngine.queryAll(
-    "SELECT * FROM exam_results WHERE trainee_id = ? ORDER BY finished_at DESC LIMIT 5", [tid]
-  );
-  if (!results.length) return "";
-
-  let rows = "";
-  results.forEach(r => {
-    const pct = Math.round((r.score / r.total) * 100);
-    const passed = r.passed;
-    const date = r.finished_at ? new Date(r.finished_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–";
-    rows += `<tr>
-      <td>${date}</td>
-      <td>${r.score} / ${r.total}</td>
-      <td><span class="exam-hist-badge ${passed ? "exam-hist-pass" : "exam-hist-fail"}">${pct}% – ${passed ? "Bestanden" : "Nicht bestanden"}</span></td>
-    </tr>`;
-  });
-
-  return `<div class="exam-history">
-    <h4>Letzte Prüfungen</h4>
-    <table class="exam-history-table"><tbody>${rows}</tbody></table>
-  </div>`;
+function canDeleteExams(traineeId) {
+  if (!S.user) return false;
+  if (canAdmin()) return true;
+  if (S.user.role === "trainer") {
+    const trainee = S.db.users.find(u => u.id === traineeId);
+    return trainee && trainee.created_by === S.user.id;
+  }
+  return false;
 }
+
 
 function buildDashboardHtml() {
   const overall = overallProgress();
@@ -891,16 +877,6 @@ function buildDashboardHtml() {
           <h3>Fortschritt nach Phase</h3>
           ${phaseHtml}
         </div>
-        <div class="exam-start-section">
-          <h3>Prüfung</h3>
-          <p style="font-size:13px;opacity:0.6;margin:4px 0 12px">${EXAM_TOTAL} Fragen aus dem Fragenpool – ${EXAM_PASS_PCT}% zum Bestehen.</p>
-          <button class="btn-primary btn-sm" id="btn-start-exam" type="button">Prüfung starten</button>
-          ${canAdmin() ? '<button class="btn-secondary btn-sm" id="btn-exam-editor" type="button" style="margin-left:8px">Fragen verwalten</button>' : ""}
-          <span class="exam-question-count" id="exam-q-count"></span>
-          ${buildExamHistory()}
-          ${canVerify() ? '<button class="btn-secondary btn-sm" id="btn-exam-analysis" type="button" style="margin-top:10px">Schwächenanalyse</button>' : ""}
-        </div>
-        ${canVerify() ? '<button class="btn-primary btn-sm" id="btn-report" type="button" style="margin-top:20px">Bericht erstellen</button>' : ""}
       </div>
     </div>`;
 }
@@ -1134,24 +1110,24 @@ function buildDatenHtml() {
 function bindPageEvents() {
   const pane = $("#content-pane");
 
-  // Report button
-  const reportBtn = $("#btn-report");
-  if (reportBtn) reportBtn.addEventListener("click", generateReport);
+  // Exam result delete (single)
+  $$(".exam-hist-del").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!confirm("Prüfungsergebnis löschen?")) return;
+      DbEngine.run("DELETE FROM exam_results WHERE id = ?", [parseInt(btn.dataset.examId)]);
+      renderPage();
+    });
+  });
 
-  // Exam buttons
-  const examStartBtn = $("#btn-start-exam");
-  if (examStartBtn) examStartBtn.addEventListener("click", startExam);
-  const examEditorBtn = $("#btn-exam-editor");
-  if (examEditorBtn) examEditorBtn.addEventListener("click", openExamEditor);
-
-  const examAnalysisBtn = $("#btn-exam-analysis");
-  if (examAnalysisBtn) examAnalysisBtn.addEventListener("click", openExamAnalysis);
-
-  // Show question count
-  const qCount = $("#exam-q-count");
-  if (qCount) {
-    const cnt = DbEngine.queryAll("SELECT COUNT(*) AS c FROM exam_questions")[0]?.c || 0;
-    qCount.textContent = cnt > 0 ? `${cnt} Fragen im Pool` : "Noch keine Fragen";
+  // Exam result delete all
+  const delAllBtn = $("#exam-del-all");
+  if (delAllBtn) {
+    delAllBtn.addEventListener("click", () => {
+      const tid = S.selectedTraineeId || S.user?.id;
+      if (!tid || !confirm("Alle Prüfungsergebnisse für diesen Schüler löschen?")) return;
+      DbEngine.run("DELETE FROM exam_results WHERE trainee_id = ?", [tid]);
+      renderPage();
+    });
   }
 
   // Edit buttons
@@ -1751,6 +1727,8 @@ function updateUserUi() {
   const roles = { admin: "Admin", trainer: "Trainer", trainee: "Azubi" };
   if (r) r.textContent = roles[S.user.role] || S.user.role;
   if (a) a.textContent = S.user.initials || S.user.display_name.slice(0, 2).toUpperCase();
+  const ver = $("#app-version");
+  if (ver) ver.textContent = "v" + APP_VERSION;
 }
 
 function updateTraineeSelect() {
@@ -2166,11 +2144,15 @@ function bindGlobalEvents() {
     const dd = $("#user-dropdown");
     if (dd) {
       dd.classList.toggle("hidden");
-      // Hide "Benutzer anlegen" + "Benutzer ändern" for trainees
+      // Hide items by role
       const addItem = $("#menu-add-user");
       if (addItem) addItem.classList.toggle("hidden", !canVerify());
       const manageItem = $("#menu-manage-users");
       if (manageItem) manageItem.classList.toggle("hidden", !canVerify());
+      const examEditorItem = $("#menu-exam-editor");
+      if (examEditorItem) examEditorItem.classList.toggle("hidden", !canAdmin());
+      const reportItem = $("#menu-report");
+      if (reportItem) reportItem.classList.toggle("hidden", !canVerify());
     }
   });
 
@@ -2201,6 +2183,34 @@ function bindGlobalEvents() {
     const dd = $("#user-dropdown");
     if (dd) dd.classList.add("hidden");
     openUserManagement();
+  });
+
+  const menuExamStart = $("#menu-exam-start");
+  if (menuExamStart) menuExamStart.addEventListener("click", () => {
+    const dd = $("#user-dropdown");
+    if (dd) dd.classList.add("hidden");
+    startExam();
+  });
+
+  const menuExamAnalysis = $("#menu-exam-analysis");
+  if (menuExamAnalysis) menuExamAnalysis.addEventListener("click", () => {
+    const dd = $("#user-dropdown");
+    if (dd) dd.classList.add("hidden");
+    openExamAnalysis();
+  });
+
+  const menuExamEditor = $("#menu-exam-editor");
+  if (menuExamEditor) menuExamEditor.addEventListener("click", () => {
+    const dd = $("#user-dropdown");
+    if (dd) dd.classList.add("hidden");
+    openExamEditor();
+  });
+
+  const menuReport = $("#menu-report");
+  if (menuReport) menuReport.addEventListener("click", () => {
+    const dd = $("#user-dropdown");
+    if (dd) dd.classList.add("hidden");
+    generateReport();
   });
 
   const sel = $("#trainee-select");
@@ -2920,7 +2930,26 @@ function openExamAnalysis() {
     .filter(s => s.wrong > 0)
     .sort((a, b) => b.errorRate - a.errorRate);
 
-  // Trend (score over time)
+  // History table (with delete if allowed)
+  const canDel = canDeleteExams(tid);
+  let histRows = "";
+  // Show newest first in history
+  [...results].reverse().forEach(r => {
+    const pct = Math.round((r.score / r.total) * 100);
+    const date = r.finished_at ? new Date(r.finished_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–";
+    const passed = r.passed;
+    const delBtn = canDel ? `<button class="ea-hist-del" data-exam-id="${r.id}" title="Löschen">&times;</button>` : "";
+    histRows += `<tr>
+      <td>${date}</td>
+      <td>${r.score}/${r.total}</td>
+      <td><span class="exam-hist-badge ${passed ? "exam-hist-pass" : "exam-hist-fail"}">${pct}%</span></td>
+      ${canDel ? `<td class="exam-hist-del-cell">${delBtn}</td>` : ""}
+    </tr>`;
+  });
+  const delAllBtn = canDel && results.length > 1
+    ? `<button class="btn-secondary btn-xs ea-del-all" id="ea-del-all">Alle löschen</button>` : "";
+
+  // Trend (score over time, chronological)
   let trendHtml = "";
   results.forEach((r, i) => {
     const pct = Math.round((r.score / r.total) * 100);
@@ -3021,6 +3050,12 @@ function openExamAnalysis() {
           </div>
 
           <div class="ea-sidebar-section">
+            <h4>Alle Prüfungen (${results.length})</h4>
+            <table class="exam-history-table ea-hist-table"><tbody>${histRows}</tbody></table>
+            ${delAllBtn}
+          </div>
+
+          <div class="ea-sidebar-section">
             <h4>Verlauf</h4>
             ${trendHtml}
           </div>
@@ -3042,6 +3077,24 @@ function openExamAnalysis() {
 
   document.body.appendChild(ov);
   ov.querySelector("#ea-close").addEventListener("click", () => ov.remove());
+
+  // Delete single exam result
+  ov.querySelectorAll(".ea-hist-del").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!confirm("Prüfungsergebnis löschen?")) return;
+      DbEngine.run("DELETE FROM exam_results WHERE id = ?", [parseInt(btn.dataset.examId)]);
+      ov.remove();
+      openExamAnalysis(); // reload
+    });
+  });
+
+  // Delete all
+  const delAll = ov.querySelector("#ea-del-all");
+  if (delAll) delAll.addEventListener("click", () => {
+    if (!confirm("Alle Prüfungsergebnisse für diesen Schüler löschen?")) return;
+    DbEngine.run("DELETE FROM exam_results WHERE trainee_id = ?", [tid]);
+    ov.remove();
+  });
 }
 
 /* ── End Exam Mode ── */
