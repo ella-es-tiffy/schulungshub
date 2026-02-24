@@ -63,6 +63,17 @@ const DbEngine = (() => {
     CREATE TABLE IF NOT EXISTS trainee_meta (
       trainee_id INTEGER PRIMARY KEY, feedback TEXT, conclusion TEXT, next_steps TEXT
     );
+    CREATE TABLE IF NOT EXISTS exam_questions (
+      id TEXT PRIMARY KEY, section_id TEXT, machine_id TEXT, phase TEXT,
+      type TEXT NOT NULL DEFAULT 'single', question TEXT NOT NULL,
+      options TEXT NOT NULL, explanation TEXT,
+      difficulty INTEGER DEFAULT 1, created_by INTEGER, created_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS exam_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, trainee_id INTEGER,
+      score INTEGER, total INTEGER, passed INTEGER,
+      answers TEXT, started_at TEXT, finished_at TEXT
+    );
   `;
 
   function migrateSchema() {
@@ -177,7 +188,7 @@ const DbEngine = (() => {
   /* ── Import (for seed + JSON import) ── */
 
   function importJsonInternal(data) {
-    db.run("DELETE FROM meta; DELETE FROM users; DELETE FROM machines; DELETE FROM content_sections; DELETE FROM learning_goals; DELETE FROM evaluations; DELETE FROM trainee_meta");
+    db.run("DELETE FROM meta; DELETE FROM users; DELETE FROM machines; DELETE FROM content_sections; DELETE FROM learning_goals; DELETE FROM evaluations; DELETE FROM trainee_meta; DELETE FROM exam_questions; DELETE FROM exam_results");
 
     for (const [k, v] of Object.entries(data.meta || {}))
       run("INSERT OR REPLACE INTO meta VALUES (?,?)", [k, String(v ?? "")]);
@@ -212,6 +223,16 @@ const DbEngine = (() => {
     for (const [tid, m] of Object.entries(data.trainee_meta || {}))
       run("INSERT OR REPLACE INTO trainee_meta VALUES (?,?,?,?)", [
         parseInt(tid), m.feedback || "", m.conclusion || "", m.next_steps || ""]);
+
+    for (const q of data.exam_questions || [])
+      run("INSERT OR REPLACE INTO exam_questions VALUES (?,?,?,?,?,?,?,?,?,?,?)", [
+        q.id, q.section_id || null, q.machine_id || null, q.phase || null,
+        q.type || "single", q.question, q.options, q.explanation || "",
+        q.difficulty || 1, q.created_by || null, q.created_at || ""]);
+
+    for (const r of data.exam_results || [])
+      run("INSERT INTO exam_results (trainee_id,score,total,passed,answers,started_at,finished_at) VALUES (?,?,?,?,?,?,?)", [
+        r.trainee_id, r.score, r.total, r.passed ? 1 : 0, r.answers, r.started_at || "", r.finished_at || ""]);
   }
 
   /* ── toJson (nur für Export/Backup) ── */
@@ -246,7 +267,10 @@ const DbEngine = (() => {
       trainee_meta[r.trainee_id] = { feedback: r.feedback, conclusion: r.conclusion, next_steps: r.next_steps };
     });
 
-    return { meta, users, machines, content_sections, learning_goals, evaluations, trainee_meta };
+    const exam_questions = queryAll("SELECT * FROM exam_questions");
+    const exam_results = queryAll("SELECT * FROM exam_results");
+
+    return { meta, users, machines, content_sections, learning_goals, evaluations, trainee_meta, exam_questions, exam_results };
   }
 
   /* ── Persistence ── */
