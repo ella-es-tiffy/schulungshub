@@ -371,13 +371,8 @@ function setupShiftLogout() {
 /* ── 9. Save Status ── */
 
 function updateSaveStatus(status) {
-  const el = $("#save-status");
-  if (!el) return;
-  el.dataset.state = status;
-  const dot = el.querySelector(".save-dot");
-  const label = $("#save-label");
-  const labels = { saved: "Gespeichert", saving: "Speichert...", dirty: "Ungespeichert", error: "Fehler!" };
-  if (label) label.textContent = labels[status] || "";
+  const dot = $("#save-dot");
+  if (dot) dot.dataset.state = status;
 
   // Error: show blocking overlay
   if (status === "error") showSaveError();
@@ -459,6 +454,115 @@ function toggleThemeReveal() {
     applyTheme(newTheme);
     setTimeout(() => overlay.classList.remove("revealing"), 600);
   }, 400);
+}
+
+/* ── 11b. Search ── */
+
+function performSearch(query) {
+  const q = `%${query}%`;
+  return DbEngine.queryAll(`
+    SELECT 'section' AS type, id, title, NULL AS extra FROM content_sections
+      WHERE title LIKE ?1 COLLATE NOCASE OR content_md LIKE ?1 COLLATE NOCASE
+    UNION ALL
+    SELECT 'goal' AS type, id, title, phase || ':' || machine_id AS extra FROM learning_goals
+      WHERE title LIKE ?1 COLLATE NOCASE
+    UNION ALL
+    SELECT 'machine' AS type, id, label AS title, NULL AS extra FROM machines
+      WHERE label LIKE ?1 COLLATE NOCASE
+    LIMIT 20
+  `, [q]);
+}
+
+function closeSearchOverlay(clearInput = true) {
+  const ov = $("#search-overlay");
+  if (ov) ov.remove();
+  if (clearInput) {
+    const inp = $("#header-search");
+    if (inp) inp.value = "";
+  }
+}
+
+function renderSearchResults(results, query) {
+  // Remove previous overlay
+  let ov = $("#search-overlay");
+  if (ov) ov.remove();
+
+  // Create overlay
+  ov = document.createElement("div");
+  ov.id = "search-overlay";
+  ov.className = "search-overlay";
+
+  if (!results.length) {
+    ov.innerHTML = `<div class="search-overlay-card"><h2>Suche: „${esc(query)}"</h2><p style="opacity:0.5;margin-top:12px">Keine Treffer.</p></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click", (e) => { if (e.target === ov) closeSearchOverlay(); });
+    return;
+  }
+
+  const re = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const hl = (s) => esc(s).replace(re, `<mark>$1</mark>`);
+
+  const badges = { section: "Inhalt", goal: "Ziel", machine: "Maschine" };
+  const cls = { section: "badge-section", goal: "badge-goal", machine: "badge-machine" };
+
+  let html = `<div class="search-overlay-card">`;
+  html += `<h2>Suche: „${esc(query)}" <span style="font-weight:400;font-size:0.7em;opacity:0.5">${results.length} Treffer</span></h2>`;
+  html += `<div class="search-results-list">`;
+  results.forEach(r => {
+    const badge = `<span class="search-badge ${cls[r.type]}">${badges[r.type]}</span>`;
+    let target = "";
+    if (r.type === "section") {
+      target = `sec-${r.id}`;
+    } else if (r.type === "goal") {
+      const [phase] = (r.extra || "").split(":");
+      target = `sec-phase-${phase}`;
+    } else if (r.type === "machine") {
+      const g = S.db.learning_goals.find(g => g.machine_id === r.id);
+      target = g ? `sec-phase-${g.phase}` : "";
+    }
+    const dataExtra = r.type === "goal" ? ` data-machine="${(r.extra || "").split(":")[1]}"` : "";
+    html += `<a class="search-result-item" data-target="${target}"${dataExtra}>
+      ${badge}<span class="search-result-title">${hl(r.title)}</span>
+      <span class="search-result-arrow">&#8250;</span>
+    </a>`;
+  });
+  html += `</div></div>`;
+
+  ov.innerHTML = html;
+  document.body.appendChild(ov);
+
+  // Close on backdrop click
+  ov.addEventListener("click", (e) => { if (e.target === ov) closeSearchOverlay(); });
+
+  // Click result → navigate + close
+  ov.querySelectorAll(".search-result-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.preventDefault();
+      const t = item.dataset.target;
+      const mid = item.dataset.machine || null;
+      closeSearchOverlay();
+      if (t) navigateToResult(t, mid);
+    });
+  });
+}
+
+function navigateToResult(target, machineId) {
+  const el = document.getElementById(target);
+  if (!el) return;
+  el.classList.add("visible");
+
+  // If navigating to a goal, open the machine group first
+  if (machineId) {
+    const mg = el.querySelector(`.machine-group[data-machine="${machineId}"]`);
+    if (mg) mg.open = true;
+  }
+
+  // Instant jump + bounce
+  window.scrollTo({ top: el.offsetTop - 70, behavior: "instant" });
+  el.classList.remove("snap-bounce");
+  void el.offsetWidth; // force reflow
+  el.classList.add("snap-bounce");
+  el.addEventListener("animationend", () => el.classList.remove("snap-bounce"), { once: true });
 }
 
 /* ── 12. Sidebar ── */
@@ -893,8 +997,9 @@ function buildGoalCard(goal) {
       </div>`;
   }
 
-  // Inline fields for trainers (always visible)
+  // Inline fields for trainers (hidden by default, expand on click)
   let fieldsHtml = "";
+  const hasData = ev && (ev.comment || ev.action || ev.error_rate);
   if (canVerify() && !sm) {
     fieldsHtml = `
       <div class="goal-fields" data-goal-detail="${goal.id}">
@@ -913,11 +1018,14 @@ function buildGoalCard(goal) {
     fieldsHtml = `<div class="goal-fields-readonly">${parts.join(" ")}</div>`;
   }
 
-  return `<div class="goal-row${fieldsHtml ? ' has-fields' : ''}${sm ? ' sort-active' : ''}" data-goal-id="${goal.id}" data-score="${score}">
+  const expandBtn = !sm && fieldsHtml ? `<button type="button" class="goal-expand-btn" title="Details">&#9654;</button>` : "";
+
+  return `<div class="goal-row${hasData ? ' has-data' : ''}${sm ? ' sort-active' : ''}" data-goal-id="${goal.id}" data-score="${score}">
     <div class="goal-row-main">
       ${sm ? '' : `<div class="rating-pill">${segs}</div>`}
       <span class="goal-row-title">${esc(goal.title)}</span>
       <span class="goal-row-meta">${meta}</span>
+      ${expandBtn}
     </div>
     ${sortHtml}
     ${fieldsHtml}
@@ -1034,6 +1142,14 @@ function bindPageEvents() {
     }
   });
 
+  // Expand/collapse goal detail fields
+  pane.querySelectorAll(".goal-expand-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      btn.closest(".goal-row").classList.toggle("expanded");
+    });
+  });
+
   // Rating pill segments
   pane.querySelectorAll(".rating-pill-seg").forEach(seg => {
     seg.addEventListener("click", () => {
@@ -1134,6 +1250,9 @@ function updateGoalCardUi(goalId) {
   });
   const meta = row.querySelector(".goal-row-meta");
   if (meta && ev) meta.innerHTML = `${esc(userName(ev.evaluated_by))} · ${formatDate(ev.evaluated_at)}`;
+
+  // Update has-data indicator on expand button
+  row.classList.toggle("has-data", !!(ev && (ev.comment || ev.action || ev.error_rate)));
 
   // Update parent progress bars (machine → phase → sidebar → dashboard)
   updateProgressUi(goalId);
@@ -1585,8 +1704,12 @@ function updateUserUi() {
 
 function updateTraineeSelect() {
   const sel = $("#trainee-select");
-  if (!canVerify()) { sel.classList.add("hidden"); return; }
-  sel.classList.remove("hidden");
+  const wrap = $("#dropdown-trainee-wrap");
+  if (!canVerify()) {
+    if (wrap) wrap.classList.add("hidden");
+    return;
+  }
+  if (wrap) wrap.classList.remove("hidden");
   sel.innerHTML = "";
   S.trainees = allTrainees();
   S.trainees.forEach(t => {
@@ -1964,6 +2087,27 @@ function setupDevLock() {
 
 /* ── 28. Global Events ── */
 function bindGlobalEvents() {
+  // Header search
+  const searchInput = $("#header-search");
+  if (searchInput) {
+    let searchTimer = null;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      const q = searchInput.value.trim();
+      if (q.length < 2) {
+        closeSearchOverlay(false);
+        return;
+      }
+      searchTimer = setTimeout(() => {
+        const results = performSearch(q);
+        renderSearchResults(results, q);
+      }, 250);
+    });
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeSearchOverlay();
+    });
+  }
+
   const chip = $("#user-chip");
   if (chip) chip.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -2009,33 +2153,31 @@ function bindGlobalEvents() {
   });
 
   const sel = $("#trainee-select");
-  if (sel) sel.addEventListener("change", () => {
-    S.selectedTraineeId = parseInt(sel.value, 10);
-    S.evalMap = buildEvalMap(S.selectedTraineeId);
-    refreshAll();
-  });
+  if (sel) {
+    sel.addEventListener("click", (e) => e.stopPropagation());
+    sel.addEventListener("change", () => {
+      S.selectedTraineeId = parseInt(sel.value, 10);
+      S.evalMap = buildEvalMap(S.selectedTraineeId);
+      refreshAll();
+    });
+  }
 
   const tb = $("#theme-toggle");
   if (tb) tb.addEventListener("click", toggleThemeReveal);
 
   $$(".font-switcher button").forEach(b => b.addEventListener("click", () => applyFont(b.dataset.font)));
 
-  const saveBtn = $("#save-btn");
-  if (saveBtn) saveBtn.addEventListener("click", async () => {
-    saveBtn.classList.add("saving");
-    saveBtn.querySelector(".save-label").textContent = "Speichert…";
+  const menuSave = $("#menu-save");
+  if (menuSave) menuSave.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const dd = $("#user-dropdown");
+    if (dd) dd.classList.add("hidden");
+    updateSaveStatus("saving");
     const ok = await DbEngine.persistNow();
-    saveBtn.classList.remove("saving");
     if (ok) {
-      saveBtn.classList.add("saved");
-      saveBtn.querySelector(".save-label").textContent = "Gespeichert!";
-      setTimeout(() => {
-        saveBtn.classList.remove("saved");
-        saveBtn.querySelector(".save-label").textContent = "Speichern";
-      }, 1500);
+      notify("Gespeichert!", "success");
     } else {
-      saveBtn.querySelector(".save-label").textContent = "Fehler!";
-      setTimeout(() => { saveBtn.querySelector(".save-label").textContent = "Speichern"; }, 2000);
+      notify("Speichern fehlgeschlagen!", "danger");
     }
   });
 

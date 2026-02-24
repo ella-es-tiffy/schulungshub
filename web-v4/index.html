@@ -26,7 +26,7 @@
       </button>
       <div>
         <p class="brand-title">Schulungs<span>Hub</span></p>
-        <p class="brand-sub">Siebdruck</p>
+        <p class="brand-sub">Siebdruck <span class="save-dot-inline" id="save-dot" title="Speicherstatus"></span></p>
       </div>
     </div>
 
@@ -36,10 +36,11 @@
       <a class="header-nav-link hidden" id="nav-daten" data-target="sec-daten">Daten</a>
     </nav>
 
-    <div class="header-actions">
-      <!-- Trainee Selector (admin/trainer) -->
-      <select id="trainee-select" class="trainee-select hidden" aria-label="Azubi auswählen"></select>
+    <div class="header-search-wrap">
+      <input type="text" class="header-search" id="header-search" placeholder="Suchen..." autocomplete="off">
+    </div>
 
+    <div class="header-actions">
       <!-- Font Size -->
       <div class="font-switcher" role="group" aria-label="Schriftgröße">
         <button type="button" data-font="S" title="Klein">S</button>
@@ -52,18 +53,6 @@
         <span class="theme-icon" id="theme-icon">☀</span>
       </button>
 
-      <!-- Save Button -->
-      <button class="save-btn" id="save-btn" type="button" title="Datenbank speichern" aria-label="Speichern">
-        <span uk-icon="icon: push; ratio:0.85"></span>
-        <span class="save-label">Speichern</span>
-      </button>
-
-      <!-- Save Status -->
-      <div class="save-status" id="save-status" data-state="saved" title="Speicherstatus">
-        <span class="save-dot"></span>
-        <span id="save-label">Gespeichert</span>
-      </div>
-
       <!-- User Menu -->
       <div class="user-menu-wrap">
         <div class="user-chip" id="user-chip" role="button" tabindex="0">
@@ -75,6 +64,10 @@
           </div>
         </div>
         <div class="user-dropdown hidden" id="user-dropdown">
+          <div class="dropdown-trainee-wrap hidden" id="dropdown-trainee-wrap">
+            <select id="trainee-select" class="dropdown-trainee-select" aria-label="Azubi auswählen"></select>
+          </div>
+          <a class="user-dropdown-item" id="menu-save"><span uk-icon="icon: push; ratio:0.75"></span> Speichern</a>
           <a class="user-dropdown-item" id="menu-add-user"><span uk-icon="icon: plus-circle; ratio:0.75"></span> Benutzer anlegen</a>
           <a class="user-dropdown-item" id="menu-manage-users"><span uk-icon="icon: users; ratio:0.75"></span> Benutzer ändern</a>
           <div class="user-dropdown-divider"></div>
