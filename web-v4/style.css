@@ -1654,6 +1654,31 @@ p > code, li > code, td > code {
   font-size: 0.88em;
 }
 
+/* ── Slideshow ── */
+.custom-slideshow {
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 24px 0;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+[data-theme="dark"] .custom-slideshow {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.custom-slideshow .uk-slideshow-items { border-radius: 12px; }
+.custom-slideshow .uk-slideshow-items img {
+  object-fit: contain !important;
+  background: #1a1a2e;
+}
+.custom-slideshow .uk-dotnav > * > * {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+.custom-slideshow .uk-dotnav > .uk-active > * {
+  background: var(--accent);
+}
+
 /* ── Alert Boxes (FlyRing-Pattern) ── */
 .custom-alert {
   margin: 24px 0;

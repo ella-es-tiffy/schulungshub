@@ -4,7 +4,7 @@
    ================================================================ */
 
 /* ── 1. Config ── */
-const APP_VERSION = "0.1.2";
+const APP_VERSION = "0.1.3";
 const SESSION_KEY = "schulungsHub.session";
 const PREFS_KEY   = "schulungsHub.prefs";
 const DATA_KEY    = "SchulungsHub-Siebdruck-2026";
@@ -247,6 +247,23 @@ function renderMarkdown(md) {
         <div class="alert-content"><p>${content.trim()}</p></div>
       </div>`
     );
+  });
+
+  // :::slideshow blocks → UIkit slideshow
+  html = html.replace(/:::slideshow\s*([\s\S]*?):::/g, (_, content) => {
+    const images = content.trim().split('\n')
+      .map(l => l.replace(/<\/?p>/g, '').trim())
+      .filter(l => l !== '');
+    const slides = images.map(src =>
+      `<li><img src="${src}" alt="Slide" uk-cover></li>`
+    ).join('');
+    return `
+      <div class="uk-position-relative uk-visible-toggle uk-light custom-slideshow" tabindex="-1" uk-slideshow="animation: push; ratio: 16:9; autoplay: true; autoplay-interval: 4000">
+        <ul class="uk-slideshow-items">${slides}</ul>
+        <a class="uk-position-center-left uk-position-small uk-hidden-hover" href uk-slidenav-previous uk-slideshow-item="previous"></a>
+        <a class="uk-position-center-right uk-position-small uk-hidden-hover" href uk-slidenav-next uk-slideshow-item="next"></a>
+        <ul class="uk-slideshow-nav uk-dotnav uk-flex-center uk-margin"></ul>
+      </div>`;
   });
 
   return html;
@@ -1411,6 +1428,7 @@ function openEditor(sectionId) {
         <button type="button" data-block="tip" title="Tip">Tip</button>
         <button type="button" data-block="warning" title="Warnung">Warn</button>
         <button type="button" data-block="important" title="Wichtig">Imp</button>
+        <button type="button" data-action="slideshow" title="Slideshow">Slides</button>
       </div>
       <div class="editor-split">
         <div class="editor-input">
@@ -1439,6 +1457,7 @@ function openEditor(sectionId) {
       else if (btn.dataset.wrap) wrapSelection(textarea, btn.dataset.wrap);
       else if (btn.dataset.block) blockSelection(textarea, btn.dataset.block);
       else if (btn.dataset.action === "code") codeSelection(textarea);
+      else if (btn.dataset.action === "slideshow") slideshowSelection(textarea);
       updatePreview();
     });
   });
@@ -1529,6 +1548,16 @@ function codeSelection(textarea) {
     textarea.selectionStart = s + 1;
     textarea.selectionEnd = s + 1 + sel.length;
   }
+  textarea.focus();
+}
+
+function slideshowSelection(textarea) {
+  const s = textarea.selectionStart, e = textarea.selectionEnd;
+  const placeholder = "bild1.jpg\nbild2.jpg\nbild3.jpg";
+  const block = "\n:::slideshow\n" + placeholder + "\n:::\n";
+  textarea.value = textarea.value.slice(0, s) + block + textarea.value.slice(e);
+  textarea.selectionStart = s + 14; // after :::slideshow\n
+  textarea.selectionEnd = s + 14 + placeholder.length;
   textarea.focus();
 }
 
