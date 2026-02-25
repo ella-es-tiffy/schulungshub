@@ -4,7 +4,7 @@
    ================================================================ */
 
 /* ── 1. Config ── */
-const APP_VERSION = "0.1.1";
+const APP_VERSION = "0.1.2";
 const SESSION_KEY = "schulungsHub.session";
 const PREFS_KEY   = "schulungsHub.prefs";
 const DATA_KEY    = "SchulungsHub-Siebdruck-2026";
@@ -1406,7 +1406,7 @@ function openEditor(sectionId) {
         <button type="button" data-wrap="*" title="Kursiv">I</button>
         <button type="button" data-prefix="- " title="Liste">List</button>
         <button type="button" data-prefix="1. " title="Num. Liste">1.</button>
-        <button type="button" data-wrap="\`" title="Code">Code</button>
+        <button type="button" data-action="code" title="Code (inline / Block)">Code</button>
         <button type="button" data-block="note" title="Note">Note</button>
         <button type="button" data-block="tip" title="Tip">Tip</button>
         <button type="button" data-block="warning" title="Warnung">Warn</button>
@@ -1438,6 +1438,7 @@ function openEditor(sectionId) {
       if (btn.dataset.prefix) prefixSelection(textarea, btn.dataset.prefix);
       else if (btn.dataset.wrap) wrapSelection(textarea, btn.dataset.wrap);
       else if (btn.dataset.block) blockSelection(textarea, btn.dataset.block);
+      else if (btn.dataset.action === "code") codeSelection(textarea);
       updatePreview();
     });
   });
@@ -1507,6 +1508,26 @@ function wrapSelection(textarea, w) {
   } else {
     textarea.value = textarea.value.slice(0, s) + w + w + textarea.value.slice(e);
     textarea.selectionStart = textarea.selectionEnd = s + w.length;
+  }
+  textarea.focus();
+}
+
+function codeSelection(textarea) {
+  const s = textarea.selectionStart, e = textarea.selectionEnd;
+  const sel = textarea.value.slice(s, e);
+  const multiline = sel.includes("\n");
+  if (multiline || !sel) {
+    // Fenced code block
+    const inner = sel || "Code hier...";
+    const block = "\n```\n" + inner + "\n```\n";
+    textarea.value = textarea.value.slice(0, s) + block + textarea.value.slice(e);
+    textarea.selectionStart = s + 5; // after opening ``` + newline
+    textarea.selectionEnd = s + 5 + inner.length;
+  } else {
+    // Inline code
+    textarea.value = textarea.value.slice(0, s) + "`" + sel + "`" + textarea.value.slice(e);
+    textarea.selectionStart = s + 1;
+    textarea.selectionEnd = s + 1 + sel.length;
   }
   textarea.focus();
 }
