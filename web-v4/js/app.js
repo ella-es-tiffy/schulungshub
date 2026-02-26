@@ -140,7 +140,7 @@ function bindGlobalEvents() {
       const reportItem = $("#menu-report");
       if (reportItem) reportItem.classList.toggle("hidden", !canVerify());
       const profileItem = $("#menu-trainee-profile");
-      if (profileItem) profileItem.classList.toggle("hidden", !S.selectedTraineeId);
+      if (profileItem) profileItem.classList.toggle("hidden", !canVerify() || !S.selectedTraineeId);
     }
   });
 

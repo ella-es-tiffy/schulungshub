@@ -34,14 +34,16 @@ const Sidebar = (() => {
       </button>`;
     }
 
-    h += `<div class="nav-header">Bewertung</div>`;
-    getPhases().forEach(p => {
-      const pct = Math.round(phaseProgress(p.id));
-      h += `<a class="nav-link" data-target="sec-phase-${p.id}" data-phase="${p.id}">
-        ${esc(p.label)} <span class="mono-label" style="margin-left:auto">${pct}%</span>
-      </a>`;
-    });
-    h += `<a class="nav-link" data-target="sec-history">Letzte Bewertungen</a>`;
+    if (!canVerify()) {
+      h += `<div class="nav-header">Bewertung</div>`;
+      getPhases().forEach(p => {
+        const pct = Math.round(phaseProgress(p.id));
+        h += `<a class="nav-link" data-target="sec-phase-${p.id}" data-phase="${p.id}">
+          ${esc(p.label)} <span class="mono-label" style="margin-left:auto">${pct}%</span>
+        </a>`;
+      });
+      h += `<a class="nav-link" data-target="sec-history">Letzte Bewertungen</a>`;
+    }
 
     if (canAdmin()) {
       h += `<div class="nav-header">Daten</div>`;

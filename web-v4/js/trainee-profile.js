@@ -5,6 +5,8 @@
    Depends on: js/utils.js, js/state.js, js/eval.js, db-engine.js
    ================================================================ */
 const TraineeProfile = (() => {
+  let _prevTraineeId = null;
+  let _activeTab = "bewertungen";
 
   function openProfile(traineeId) {
     const tid = traineeId || S.selectedTraineeId;
@@ -13,12 +15,11 @@ const TraineeProfile = (() => {
     if (!trainee) return;
 
     // Ensure evalMap is for this trainee
-    const prevId = S.selectedTraineeId;
+    let ov = $("#trainee-profile-overlay");
+    if (!ov) _prevTraineeId = S.selectedTraineeId; // First open: save prev
+    if (ov) ov.remove();
     S.selectedTraineeId = tid;
     S.evalMap = buildEvalMap(tid);
-
-    let ov = $("#trainee-profile-overlay");
-    if (ov) ov.remove();
 
     ov = document.createElement("div");
     ov.id = "trainee-profile-overlay";
@@ -27,11 +28,34 @@ const TraineeProfile = (() => {
     const detail = computeEtaDetailed();
     const editable = canVerify();
 
+    function tab(id, label) {
+      const a = _activeTab === id ? " tp-tab-active" : "";
+      return `<button class="tp-tab${a}" data-tab="${id}">${label}</button>`;
+    }
+
+    let mainContent = "";
+    if (_activeTab === "bewertungen") {
+      mainContent = buildEvaluationSection() + buildHistoryHtml();
+    } else if (_activeTab === "prognose") {
+      mainContent = buildFactorBreakdown(detail, trainee)
+        + buildAttendanceCalendar(tid)
+        + buildLearningCurveSection(detail)
+        + buildMotivationSection(detail)
+        + buildPhaseBreakdown();
+    } else if (_activeTab === "pruefungen") {
+      mainContent = '<h2>Prüfungen</h2><p style="opacity:0.5">Kommt bald...</p>';
+    }
+
     ov.innerHTML = `
       <div class="er-page tp-page">
         <div class="er-header tp-header">
-          <span class="er-title">Profil: ${esc(trainee.display_name)}</span>
+          <div class="tp-tabs">
+            ${tab("bewertungen", "Bewertungen")}
+            ${tab("prognose", "Prognose")}
+            ${tab("pruefungen", "Prüfungen")}
+          </div>
           <div class="er-header-actions">
+            <span class="tp-header-name">${esc(trainee.display_name)}</span>
             <button class="btn-primary btn-sm" id="tp-close">Schliessen</button>
           </div>
         </div>
@@ -41,17 +65,14 @@ const TraineeProfile = (() => {
             ${buildForecastSummary(detail)}
           </aside>
           <main class="er-main tp-main">
-            ${buildFactorBreakdown(detail, trainee)}
-            ${buildAttendanceCalendar(tid)}
-            ${buildLearningCurveSection(detail)}
-            ${buildMotivationSection(detail)}
-            ${buildPhaseBreakdown()}
+            ${mainContent}
           </main>
         </div>
       </div>`;
 
     document.body.appendChild(ov);
-    bindProfileEvents(ov, tid, trainee, prevId);
+    ov.querySelectorAll(".doc-section").forEach(el => el.classList.add("visible"));
+    bindProfileEvents(ov, tid, trainee);
   }
 
   /* ── Tooltip Helper ── */
@@ -59,9 +80,29 @@ const TraineeProfile = (() => {
     return ` <span class="tp-help" data-tip="${text}">?</span>`;
   }
 
+  /* ── Evaluation Section (Phases + Goals) ── */
+  function buildEvaluationSection() {
+    let html = '<h2>Bewertungen</h2>';
+
+    if (canAdmin()) {
+      html += `<div style="margin-bottom:16px">
+        <button class="btn-secondary btn-sm" id="tp-sort-mode" type="button">
+          ${S.sortMode ? "✓ Sortierung beenden" : "⇅ Bewertungen sortieren"}
+        </button>
+      </div>`;
+    }
+
+    getPhases().forEach(p => {
+      const goals = S.db.learning_goals.filter(g => g.phase === p.id);
+      if (goals.length) html += buildPhaseHtml(p, goals);
+    });
+
+    return html;
+  }
+
   /* ── Personal Data Section ── */
   function buildPersonalSection(trainee, editable) {
-    const roleLabel = trainee.role === "trainer" ? "Trainer" : trainee.role === "admin" ? "Admin" : "Schüler";
+    const roleLabel = trainee.role === "trainer" ? "Trainer" : trainee.role === "admin" ? "Admin" : "Azubi";
     const age = trainee.age != null ? trainee.age : null;
     const langLabels = ["Keine", "Grundkenntnisse", "Gut", "Muttersprachler"];
     const motorikLabels = ["Keine Erfahrung", "Wenig Erfahrung", "Durchschnittlich", "Sehr erfahren"];
@@ -74,9 +115,8 @@ const TraineeProfile = (() => {
     return `
       <div class="tp-section">
         <div class="er-stat-block er-pass" style="text-align:center">
-          <div class="tp-avatar">${esc(trainee.initials || trainee.display_name.slice(0, 2).toUpperCase())}</div>
-          <div style="font-weight:700; font-size:15px; margin-top:8px">${esc(trainee.display_name)}</div>
-          <div style="font-size:11px; opacity:0.6">${roleLabel} · ${esc(trainee.username)}</div>
+          <div style="font-weight:700; font-size:15px">${esc(trainee.display_name)}</div>
+          <div style="font-size:11px; opacity:0.6">${roleLabel}</div>
         </div>
         <div class="er-stats tp-stats">
           <div class="er-stat">
@@ -364,13 +404,22 @@ const TraineeProfile = (() => {
   }
 
   /* ── Event Binding ── */
-  function bindProfileEvents(ov, tid, trainee, prevId) {
+  function bindProfileEvents(ov, tid, trainee) {
     // Close
     ov.querySelector("#tp-close").addEventListener("click", () => {
       ov.remove();
-      // Restore previous selection
-      S.selectedTraineeId = prevId;
-      S.evalMap = prevId ? buildEvalMap(prevId) : {};
+      S.selectedTraineeId = _prevTraineeId;
+      S.evalMap = _prevTraineeId ? buildEvalMap(_prevTraineeId) : {};
+      _prevTraineeId = null;
+      refreshAll();
+    });
+
+    // Tab navigation
+    ov.querySelectorAll(".tp-tab").forEach(t => {
+      t.addEventListener("click", () => {
+        _activeTab = t.dataset.tab;
+        openProfile(tid);
+      });
     });
 
     // Editable fields (inline editing)
@@ -390,6 +439,75 @@ const TraineeProfile = (() => {
     if (canVerify()) {
       bindCalendarDays(ov, tid);
     }
+
+    // ── Evaluation Events ──
+    ov.querySelectorAll(".rating-pill-seg").forEach(seg => {
+      seg.addEventListener("click", () => {
+        if (!canVerify() || !S.selectedTraineeId) return;
+        const gid = seg.dataset.goal;
+        const val = parseInt(seg.dataset.val, 10);
+        const current = goalScore(gid);
+        clearTimeout(S.fieldTimers[gid]);
+        delete S.fieldTimers[gid];
+        saveEvaluation(gid, current === val ? 0 : val);
+      });
+    });
+
+    ov.querySelectorAll(".goal-expand-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        btn.closest(".goal-row").classList.toggle("expanded");
+      });
+    });
+
+    function dSaveProfile(gid) {
+      clearTimeout(S.fieldTimers[gid]);
+      S.fieldTimers[gid] = setTimeout(() => {
+        delete S.fieldTimers[gid];
+        const fields = ov.querySelector(`.goal-fields[data-goal-detail="${gid}"]`);
+        if (!fields) return;
+        saveEvaluation(gid, goalScore(gid),
+          parseFloat(fields.querySelector(".goal-error-rate")?.value) || 0,
+          fields.querySelector(".goal-comment")?.value || "",
+          fields.querySelector(".goal-action")?.value || "");
+      }, 800);
+    }
+
+    ov.querySelectorAll(".goal-error-rate, .goal-comment, .goal-action").forEach(inp => {
+      inp.addEventListener("input", () => { if (canVerify()) dSaveProfile(inp.dataset.goal); });
+    });
+
+    const sortBtn = ov.querySelector("#tp-sort-mode");
+    if (sortBtn) {
+      sortBtn.addEventListener("click", () => {
+        S.sortMode = !S.sortMode;
+        openProfile(tid);
+      });
+    }
+
+    ov.querySelectorAll(".sort-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const action = btn.dataset.sort;
+        if (action === "phase-up") { movePhase(btn.dataset.phase, -1); openProfile(tid); }
+        else if (action === "phase-down") { movePhase(btn.dataset.phase, 1); openProfile(tid); }
+        else if (action === "machine-up") { moveMachine(btn.dataset.machine, -1); openProfile(tid); }
+        else if (action === "machine-down") { moveMachine(btn.dataset.machine, 1); openProfile(tid); }
+        else if (action === "goal-up") { moveGoal(btn.dataset.goal, -1); openProfile(tid); }
+        else if (action === "goal-down") { moveGoal(btn.dataset.goal, 1); openProfile(tid); }
+      });
+    });
+
+    ov.querySelectorAll(".sort-select").forEach(sel => {
+      sel.addEventListener("change", (e) => {
+        e.stopPropagation();
+        const action = sel.dataset.sort;
+        if (action === "goal-phase") reassignGoal(sel.dataset.goal, "phase", sel.value);
+        else if (action === "goal-machine") reassignGoal(sel.dataset.goal, "machine_id", sel.value);
+        openProfile(tid);
+      });
+    });
   }
 
   /* ── Inline Editing ── */

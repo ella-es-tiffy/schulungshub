@@ -137,8 +137,10 @@ function renderPage() {
   const pane = $("#content-pane");
   pane.innerHTML = "";
 
-  // Dashboard section
-  pane.innerHTML += buildDashboardHtml();
+  // Dashboard section (only for trainees viewing their own progress)
+  if (!canVerify()) {
+    pane.innerHTML += buildDashboardHtml();
+  }
 
   // Content sections (3 levels)
   (S.db.content_sections || []).forEach(sec => {
@@ -151,23 +153,15 @@ function renderPage() {
     });
   });
 
-  // Sort mode toggle (admin only)
-  if (canAdmin()) {
-    pane.innerHTML += `<div class="doc-section visible" style="margin-bottom:20px">
-      <button class="btn-secondary btn-sm" id="btn-sort-mode" type="button">
-        ${S.sortMode ? "✓ Sortierung beenden" : "⇅ Bewertungen sortieren"}
-      </button>
-    </div>`;
+  // Evaluation sections (trainees only — trainers/admins use trainee profile)
+  if (!canVerify()) {
+    getPhases().forEach(p => {
+      const goals = S.db.learning_goals.filter(g => g.phase === p.id);
+      if (goals.length) pane.innerHTML += buildPhaseHtml(p, goals);
+    });
+
+    pane.innerHTML += buildHistoryHtml();
   }
-
-  // Goal phases
-  getPhases().forEach(p => {
-    const goals = S.db.learning_goals.filter(g => g.phase === p.id);
-    if (goals.length) pane.innerHTML += buildPhaseHtml(p, goals);
-  });
-
-  // History
-  pane.innerHTML += buildHistoryHtml();
 
   // Data management section (admin only)
   if (canAdmin()) {
@@ -216,7 +210,7 @@ function buildDashboardHtml() {
     <div class="doc-section" id="sec-dashboard">
       <div class="dashboard">
         <div class="dashboard-greeting">
-          <h1>Lernfortschritt: ${esc(trainee)} ${S.selectedTraineeId ? `<button class="tp-profile-btn" id="btn-open-profile" type="button"><span uk-icon="icon: user; ratio:0.7"></span> Profil</button>` : ""}</h1>
+          <h1>Lernfortschritt: ${esc(trainee)}</h1>
           <p class="sub">${canVerify() ? "TRAINERANSICHT" : "EIGENER FORTSCHRITT"}</p>
         </div>
         <div class="stats-row">
@@ -480,10 +474,6 @@ function buildDatenHtml() {
 /* ── 16. Page Event Binding ── */
 function bindPageEvents() {
   const pane = $("#content-pane");
-
-  // Trainee profile button
-  const profileBtn = $("#btn-open-profile");
-  if (profileBtn) profileBtn.addEventListener("click", () => openTraineeProfile());
 
   // Exam result delete (single)
   $$(".exam-hist-del").forEach(btn => {
