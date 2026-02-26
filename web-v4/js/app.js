@@ -1,22 +1,17 @@
 /* ================================================================
-   SchulungsHub v4 – Application Logic
-   NAS = Single Source of Truth, Direct SQL, Debounced Persist
-   Depends on: js/utils.js, js/crypto.js, js/markdown.js, js/state.js, js/eval.js, js/prefs.js, js/auth.js, db-engine.js
+   SchulungsHub v4 – App Orchestration (Entry Point)
+   Wires all modules together: boot, events, guards, NAS, UI chrome.
+   Depends on: all js/*.js modules, db-engine.js
    ================================================================ */
 
-/* ── 1. Config ── */
-const APP_VERSION = "0.1.7";
+const APP_VERSION = "0.2.0";
 const DATA_KEY    = Crypto.DATA_KEY;
 
-/* ── Modules → js/state.js, js/eval.js, js/markdown.js, js/auth.js, js/prefs.js ── */
-
-/* ── 9. Save Status ── */
+/* ── Save Status ── */
 
 function updateSaveStatus(status) {
   const dot = $("#save-dot");
   if (dot) dot.dataset.state = status;
-
-  // Error: show blocking overlay
   if (status === "error") showSaveError();
 }
 
@@ -47,14 +42,14 @@ function showSaveError() {
   });
 }
 
-/* ── 10. Notifications ── */
+/* ── Notifications ── */
+
 function notify(msg, type = "primary") {
   if (window.UIkit) UIkit.notification(msg, { status: type, pos: "bottom-right", timeout: 3000 });
 }
 
-/* ── Modules → js/search.js, js/sidebar.js, js/render.js, js/editor.js, js/scoring.js ── */
+/* ── Mobile Menu ── */
 
-/* ── 24. Mobile Menu ── */
 function openMobileMenu() {
   const sb = $("#sidebar"), ov = $("#mobile-overlay");
   if (sb) sb.classList.add("mobile-open");
@@ -69,7 +64,8 @@ function closeMobileMenu() {
   document.body.style.overflow = "";
 }
 
-/* ── 25. Scroll to Top ── */
+/* ── Scroll to Top ── */
+
 function setupScrollTop() {
   const btn = $("#scroll-top");
   if (!btn) return;
@@ -79,38 +75,35 @@ function setupScrollTop() {
   }, { passive: true });
 }
 
-/* ── 26. Refresh ── */
+/* ── Refresh ── */
+
 function refreshAll() {
   if (!S.user) return;
-  if (S.editingSection) return; // Editor offen → kein Auto-Refresh
+  if (S.editingSection) return;
   S.evalMap = S.selectedTraineeId ? buildEvalMap(S.selectedTraineeId) : {};
   renderSidebar();
   renderPage();
 }
 
-/* ── 27. Lock down for non-admins ── */
+/* ── Dev-Tools Lock (non-admins) ── */
+
 function setupDevLock() {
-  // Block right-click
   document.addEventListener("contextmenu", e => {
     if (!canAdmin()) e.preventDefault();
   });
 
-  // Block dev-tools shortcuts
   document.addEventListener("keydown", e => {
     if (canAdmin()) return;
-    // F12
     if (e.key === "F12") { e.preventDefault(); return; }
-    // Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+Shift+C (DevTools)
     if (e.ctrlKey && e.shiftKey && "IJC".includes(e.key.toUpperCase())) { e.preventDefault(); return; }
-    // Ctrl+U (View Source)
     if (e.ctrlKey && e.key.toUpperCase() === "U") { e.preventDefault(); return; }
-    // Cmd variants (macOS)
     if (e.metaKey && e.altKey && "IJC".includes(e.key.toUpperCase())) { e.preventDefault(); return; }
     if (e.metaKey && e.key.toUpperCase() === "U") { e.preventDefault(); return; }
   });
 }
 
-/* ── 28. Global Events ── */
+/* ── Global Event Wiring ── */
+
 function bindGlobalEvents() {
   // Header search
   const searchInput = $("#header-search");
@@ -119,10 +112,7 @@ function bindGlobalEvents() {
     searchInput.addEventListener("input", () => {
       clearTimeout(searchTimer);
       const q = searchInput.value.trim();
-      if (q.length < 2) {
-        closeSearchOverlay(false);
-        return;
-      }
+      if (q.length < 2) { closeSearchOverlay(false); return; }
       searchTimer = setTimeout(() => {
         const results = performSearch(q);
         renderSearchResults(results, q);
@@ -133,6 +123,7 @@ function bindGlobalEvents() {
     });
   }
 
+  // User chip → dropdown
   const chip = $("#user-chip");
   if (chip) chip.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -140,7 +131,6 @@ function bindGlobalEvents() {
     const dd = $("#user-dropdown");
     if (dd) {
       dd.classList.toggle("hidden");
-      // Hide items by role
       const addItem = $("#menu-add-user");
       if (addItem) addItem.classList.toggle("hidden", !canVerify());
       const manageItem = $("#menu-manage-users");
@@ -209,6 +199,7 @@ function bindGlobalEvents() {
     generateReport();
   });
 
+  // Trainee selector
   const sel = $("#trainee-select");
   if (sel) {
     sel.addEventListener("click", (e) => e.stopPropagation());
@@ -219,11 +210,12 @@ function bindGlobalEvents() {
     });
   }
 
+  // Theme + Font
   const tb = $("#theme-toggle");
   if (tb) tb.addEventListener("click", toggleThemeReveal);
-
   $$(".font-switcher button").forEach(b => b.addEventListener("click", () => applyFont(b.dataset.font)));
 
+  // Manual save
   const menuSave = $("#menu-save");
   if (menuSave) menuSave.addEventListener("click", async (e) => {
     e.preventDefault();
@@ -238,13 +230,13 @@ function bindGlobalEvents() {
     }
   });
 
+  // Mobile menu
   const mob = $("#mobile-toggle");
   if (mob) mob.addEventListener("click", () => {
     const sb = $("#sidebar");
     if (sb && sb.classList.contains("mobile-open")) closeMobileMenu();
     else openMobileMenu();
   });
-
   const overlay = $("#mobile-overlay");
   if (overlay) overlay.addEventListener("click", closeMobileMenu);
 
@@ -263,6 +255,7 @@ function bindGlobalEvents() {
     });
   });
 
+  // Dialog forms
   const af = $("#admin-form");
   if (af) af.addEventListener("submit", handleCreateUser);
 
@@ -271,10 +264,10 @@ function bindGlobalEvents() {
   const cpd = $("#changepw-dialog");
   if (cpd) cpd.addEventListener("cancel", e => { if (S.user?.must_change_password) e.preventDefault(); });
 
-  // User management dialog close
   const umClose = $("#usermgmt-close");
   if (umClose) umClose.addEventListener("click", () => $("#usermgmt-dialog").close());
 
+  // File import
   const fi = $("#import-file-input");
   if (fi) fi.addEventListener("change", async e => {
     const file = e.target.files?.[0];
@@ -295,11 +288,11 @@ function bindGlobalEvents() {
   });
 }
 
-/* ── 28. Init / Boot ── */
+/* ── Init App (after login) ── */
+
 function initApp() {
   if (!S.user) return;
 
-  // Load user's theme preference
   const userObj = S.db.users.find(u => u.id === S.user.id);
   if (userObj?.theme) applyTheme(userObj.theme);
 
@@ -320,7 +313,6 @@ function initApp() {
   renderSidebar();
   renderPage();
 
-  // Force password change on first login (must_change_password flag)
   if (S.user.must_change_password) {
     openChangePassword();
   }
@@ -331,7 +323,8 @@ function updateHeaderNav() {
   if (datenLink) datenLink.classList.toggle("hidden", !canAdmin());
 }
 
-/* ── NAS Connection Bar (non-blocking) ── */
+/* ── NAS Connection Bar ── */
+
 function showNasBar(mode) {
   let bar = $("#nas-bar");
   if (bar) bar.remove();
@@ -361,7 +354,6 @@ function showNasBar(mode) {
       }
     });
   } else {
-    // no_handle: first-time setup
     bar.innerHTML = `<span>Speichern nicht aktiv – data.db verbinden</span>
       <button class="nas-bar-btn" id="btn-nas-connect">data.db bestätigen</button>`;
     document.body.prepend(bar);
@@ -382,7 +374,8 @@ function showNasBar(mode) {
   updateSaveStatus("error");
 }
 
-/* ── beforeunload + visibilitychange Guards ── */
+/* ── Guards ── */
+
 function setupGuards() {
   window.addEventListener("beforeunload", (e) => {
     if (DbEngine.dirty) {
@@ -399,6 +392,7 @@ function setupGuards() {
   });
 }
 
+/* ── Boot ── */
 
 async function boot() {
   loadPrefs();
@@ -408,14 +402,12 @@ async function boot() {
   setupDevLock();
   setupGuards();
 
-  // Save status callback
   DbEngine.onSaveStatus = updateSaveStatus;
   DbEngine.onConnectionLost = (err) => {
     console.error("NAS connection lost:", err);
     showSaveError();
   };
 
-  // Try to reconnect – DB is ALWAYS available after this (from file or seed)
   const status = await DbEngine.tryReconnect();
   reloadState();
   await restoreSession();
@@ -426,7 +418,6 @@ async function boot() {
   if (status === "connected") {
     updateSaveStatus("saved");
   } else {
-    // Not connected → app works (read from seed), but saves disabled
     showNasBar(status);
   }
 
