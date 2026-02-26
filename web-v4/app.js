@@ -4,7 +4,7 @@
    ================================================================ */
 
 /* ── 1. Config ── */
-const APP_VERSION = "0.1.3";
+const APP_VERSION = "0.1.4";
 const SESSION_KEY = "schulungsHub.session";
 const PREFS_KEY   = "schulungsHub.prefs";
 const DATA_KEY    = "SchulungsHub-Siebdruck-2026";
