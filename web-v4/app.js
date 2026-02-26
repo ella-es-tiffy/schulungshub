@@ -1,13 +1,14 @@
 /* ================================================================
    SchulungsHub v4 – Application Logic
    NAS = Single Source of Truth, Direct SQL, Debounced Persist
+   Depends on: js/utils.js, js/crypto.js, db-engine.js
    ================================================================ */
 
 /* ── 1. Config ── */
-const APP_VERSION = "0.1.4";
+const APP_VERSION = "0.1.5";
 const SESSION_KEY = "schulungsHub.session";
 const PREFS_KEY   = "schulungsHub.prefs";
-const DATA_KEY    = "SchulungsHub-Siebdruck-2026";
+const DATA_KEY    = Crypto.DATA_KEY;
 
 const DEFAULT_PHASES = [
   { id: "P1", label: "P1 · Grundlagen" },
@@ -36,7 +37,7 @@ const ALERT_TYPES = {
   IMPORTANT: { cls: "alert-important", icon: "★" },
 };
 
-/* ── 2. State ── */
+/* ── 2. State (Utils + Crypto loaded via js/utils.js, js/crypto.js) ── */
 const S = {
   db: null,
   user: null,
@@ -49,86 +50,6 @@ const S = {
   sortMode: false,
   fieldTimers: {},  // debounce timers per goal (to cancel on rating click)
 };
-
-/* ── 3. Utilities ── */
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => [...document.querySelectorAll(sel)];
-
-function nowIso() { return new Date().toISOString(); }
-function deepClone(v) { return JSON.parse(JSON.stringify(v)); }
-
-function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function formatDate(v) {
-  if (!v) return "-";
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return v;
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(d);
-}
-
-function formatDateShort(v) {
-  if (!v) return "-";
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return v;
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "short" }).format(d);
-}
-
-function debounce(fn, ms) {
-  let t;
-  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
-}
-
-function nextId(arr) {
-  if (!arr || !arr.length) return 1;
-  return arr.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
-}
-
-/* ── 4. Crypto (PBKDF2-SHA256) ── */
-function bytesToHex(b) { return Array.from(b).map(x => x.toString(16).padStart(2, "0")).join(""); }
-function hexToBytes(h) { const b = new Uint8Array(h.length / 2); for (let i = 0; i < b.length; i++) b[i] = parseInt(h.slice(i*2, i*2+2), 16); return b; }
-
-function timingSafeEqual(a, b) {
-  if (a.length !== b.length) return false;
-  let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return d === 0;
-}
-
-async function pbkdf2(password, saltHex, iterations) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: hexToBytes(saltHex), iterations }, key, 256);
-  return bytesToHex(new Uint8Array(bits));
-}
-
-async function verifyPassword(password, storedHash) {
-  const p = String(storedHash || "").split("$");
-  if (p.length !== 4 || p[0] !== "pbkdf2_sha256") return false;
-  const iter = parseInt(p[1], 10);
-  if (!iter || iter <= 0) return false;
-  return timingSafeEqual(await pbkdf2(password, p[2], iter), p[3]);
-}
-
-async function createPasswordHash(password) {
-  const iter = 120000;
-  const salt = bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
-  return `pbkdf2_sha256$${iter}$${salt}$${await pbkdf2(password, salt, iter)}`;
-}
-
-async function sha256Hex(text) {
-  return bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))));
-}
-
-async function hmacSign(message) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(DATA_KEY), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return bytesToHex(new Uint8Array(sig));
-}
-
-async function hmacVerify(message, signature) {
-  const expected = await hmacSign(message);
-  return timingSafeEqual(expected, signature);
-}
 
 /* ── 5. Data Access (sql.js direkt, NAS = Single Source of Truth) ── */
 
