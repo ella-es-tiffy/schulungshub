@@ -111,6 +111,7 @@ function renderUserManagementDialog() {
         <span class="usermgmt-meta">${roleLabel} · ${esc(u.username)} · angelegt: ${date} · von: ${esc(creator)}</span>
       </div>
       <div class="usermgmt-row-actions">
+        ${u.role === "trainee" ? `<button class="btn-icon umgmt-profile" data-user-id="${u.id}" title="Vollständiges Profil"><span uk-icon="icon: user; ratio:0.75"></span></button>` : ""}
         ${u.role === "trainee" ? `<button class="btn-icon umgmt-edit" data-user-id="${u.id}" title="Prognose-Daten"><span uk-icon="icon: file-edit; ratio:0.75"></span></button>` : ""}
         ${rfidBtn}
         <button class="btn-icon umgmt-reset-pw" data-user-id="${u.id}" title="Passwort zurücksetzen"><span uk-icon="icon: lock; ratio:0.75"></span></button>
@@ -164,6 +165,14 @@ function renderUserManagementDialog() {
   list.querySelectorAll(".umgmt-edit").forEach(btn => {
     btn.addEventListener("click", () => {
       openTraineeEdit(parseInt(btn.dataset.userId, 10));
+    });
+  });
+
+  // Bind trainee profile buttons
+  list.querySelectorAll(".umgmt-profile").forEach(btn => {
+    btn.addEventListener("click", () => {
+      $("#usermgmt-dialog").close();
+      openTraineeProfile(parseInt(btn.dataset.userId, 10));
     });
   });
 }
@@ -280,13 +289,15 @@ function openTraineeEdit(userId) {
 
   $("#trainee-edit-name").innerHTML = `<strong>${esc(user.display_name)}</strong>`;
 
-  const fBirth = $("#trainee-birthdate");
+  const fAge = $("#trainee-age");
   const fLang = $("#trainee-language");
+  const fMotorik = $("#trainee-motorik");
   const fTraining = $("#trainee-training");
   const fStart = $("#trainee-measure-start");
 
-  fBirth.value = user.birthdate ? user.birthdate.slice(0, 10) : "";
+  fAge.value = user.age != null ? user.age : "";
   fLang.value = user.language_level != null ? user.language_level : 3;
+  fMotorik.value = user.motorik_level != null ? user.motorik_level : 2;
   fTraining.checked = !!user.has_training;
   fStart.value = user.measure_start ? user.measure_start.slice(0, 10) : "";
 
@@ -299,14 +310,15 @@ function openTraineeEdit(userId) {
   cancelBtn.replaceWith(newCancel);
 
   newSave.addEventListener("click", async () => {
-    const birthdate = fBirth.value || null;
+    const age = fAge.value !== "" ? parseInt(fAge.value) : null;
     const languageLevel = parseInt(fLang.value) || 3;
+    const motorikLevel = parseInt(fMotorik.value) || 2;
     const hasTraining = fTraining.checked ? 1 : 0;
     const measureStart = fStart.value ? new Date(fStart.value).toISOString() : null;
 
     DbEngine.runBatch(
-      "UPDATE users SET birthdate=?, language_level=?, has_training=?, measure_start=? WHERE id=?",
-      [birthdate, languageLevel, hasTraining, measureStart, userId]
+      "UPDATE users SET age=?, language_level=?, motorik_level=?, has_training=?, measure_start=? WHERE id=?",
+      [age, languageLevel, motorikLevel, hasTraining, measureStart, userId]
     );
     await DbEngine.persistNow();
     reloadState();
@@ -334,6 +346,7 @@ async function handleDeleteUser(userId) {
   DbEngine.runBatch("UPDATE users SET active=0 WHERE id=?", [userId]);
   DbEngine.runBatch("DELETE FROM evaluations WHERE trainee_id=?", [userId]);
   DbEngine.runBatch("DELETE FROM trainee_meta WHERE trainee_id=?", [userId]);
+  DbEngine.runBatch("DELETE FROM attendance WHERE trainee_id=?", [userId]);
   await DbEngine.persistNow();
   reloadState();
   notify(`${user.display_name} entfernt.`, "success");
@@ -384,7 +397,7 @@ async function handleCreateUser(e) {
   const newId = nextId(S.db.users);
   const now = nowIso();
   DbEngine.runBatch(
-    "INSERT INTO users (id,username,display_name,initials,role,active,password_hash,rfid_hash,created_at,created_by,must_change_password,theme,birthdate,language_level,has_training,measure_start) VALUES (?,?,?,?,?,1,?,?,?,?,1,NULL,NULL,3,0,?)",
+    "INSERT INTO users (id,username,display_name,initials,role,active,password_hash,rfid_hash,created_at,created_by,must_change_password,theme,age,language_level,has_training,measure_start,motorik_level) VALUES (?,?,?,?,?,1,?,?,?,?,1,NULL,NULL,3,0,?,2)",
     [newId, uname, displayName, initials, role, passwordHash, rfidHash, now, S.user.id, now]
   );
   await DbEngine.persistNow();

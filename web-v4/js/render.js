@@ -216,7 +216,7 @@ function buildDashboardHtml() {
     <div class="doc-section" id="sec-dashboard">
       <div class="dashboard">
         <div class="dashboard-greeting">
-          <h1>Lernfortschritt: ${esc(trainee)}</h1>
+          <h1>Lernfortschritt: ${esc(trainee)} ${S.selectedTraineeId ? `<button class="tp-profile-btn" id="btn-open-profile" type="button"><span uk-icon="icon: user; ratio:0.7"></span> Profil</button>` : ""}</h1>
           <p class="sub">${canVerify() ? "TRAINERANSICHT" : "EIGENER FORTSCHRITT"}</p>
         </div>
         <div class="stats-row">
@@ -235,7 +235,7 @@ function buildDashboardHtml() {
           </div>
           <div class="stat-card">
             <div class="label">Gesch. Ende</div>
-            <div class="value">${eta && eta.date.getFullYear() - new Date().getFullYear() < 10 ? formatDateKW(eta.date) : "-"}</div>
+            <div class="value">${eta && eta.date.getFullYear() - new Date().getFullYear() < 15 ? formatDateKW(eta.date) : "-"}</div>
           </div>
         </div>
         <div class="phase-progress-section">
@@ -480,6 +480,10 @@ function buildDatenHtml() {
 /* ── 16. Page Event Binding ── */
 function bindPageEvents() {
   const pane = $("#content-pane");
+
+  // Trainee profile button
+  const profileBtn = $("#btn-open-profile");
+  if (profileBtn) profileBtn.addEventListener("click", () => openTraineeProfile());
 
   // Exam result delete (single)
   $$(".exam-hist-del").forEach(btn => {

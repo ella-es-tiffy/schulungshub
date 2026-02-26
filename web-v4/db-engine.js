@@ -45,8 +45,9 @@ const DbEngine = (() => {
       initials TEXT, role TEXT NOT NULL DEFAULT 'trainee', active INTEGER NOT NULL DEFAULT 1,
       password_hash TEXT, rfid_hash TEXT, created_at TEXT, created_by INTEGER,
       must_change_password INTEGER DEFAULT 0, theme TEXT,
-      birthdate TEXT, language_level INTEGER DEFAULT 3,
-      has_training INTEGER DEFAULT 0, measure_start TEXT
+      age INTEGER, language_level INTEGER DEFAULT 3,
+      has_training INTEGER DEFAULT 0, measure_start TEXT,
+      motorik_level INTEGER DEFAULT 2
     );
     CREATE TABLE IF NOT EXISTS machines (id TEXT PRIMARY KEY, label TEXT NOT NULL, position INTEGER DEFAULT 0);
     CREATE TABLE IF NOT EXISTS content_sections (
@@ -64,6 +65,10 @@ const DbEngine = (() => {
     );
     CREATE TABLE IF NOT EXISTS trainee_meta (
       trainee_id INTEGER PRIMARY KEY, feedback TEXT, conclusion TEXT, next_steps TEXT
+    );
+    CREATE TABLE IF NOT EXISTS attendance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, trainee_id INTEGER,
+      machine_id TEXT, date TEXT NOT NULL, hours REAL DEFAULT 8
     );
     CREATE TABLE IF NOT EXISTS exam_questions (
       id TEXT PRIMARY KEY, section_id TEXT, machine_id TEXT, phase TEXT,
@@ -90,9 +95,11 @@ const DbEngine = (() => {
       "ALTER TABLE evaluations ADD COLUMN evaluated_by INTEGER",
       "ALTER TABLE evaluations ADD COLUMN evaluated_at TEXT",
       "ALTER TABLE users ADD COLUMN birthdate TEXT",
+      "ALTER TABLE users ADD COLUMN age INTEGER",
       "ALTER TABLE users ADD COLUMN language_level INTEGER DEFAULT 3",
       "ALTER TABLE users ADD COLUMN has_training INTEGER DEFAULT 0",
       "ALTER TABLE users ADD COLUMN measure_start TEXT",
+      "ALTER TABLE users ADD COLUMN motorik_level INTEGER DEFAULT 2",
     ];
     for (const sql of migrations) {
       try { db.exec(sql); } catch { /* exists */ }
@@ -194,18 +201,19 @@ const DbEngine = (() => {
   /* ── Import (for seed + JSON import) ── */
 
   function importJsonInternal(data) {
-    db.run("DELETE FROM meta; DELETE FROM users; DELETE FROM machines; DELETE FROM content_sections; DELETE FROM learning_goals; DELETE FROM evaluations; DELETE FROM trainee_meta; DELETE FROM exam_questions; DELETE FROM exam_results");
+    db.run("DELETE FROM meta; DELETE FROM users; DELETE FROM machines; DELETE FROM content_sections; DELETE FROM learning_goals; DELETE FROM evaluations; DELETE FROM trainee_meta; DELETE FROM attendance; DELETE FROM exam_questions; DELETE FROM exam_results");
 
     for (const [k, v] of Object.entries(data.meta || {}))
       run("INSERT OR REPLACE INTO meta VALUES (?,?)", [k, String(v ?? "")]);
 
     for (const u of data.users || [])
-      run("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [
+      run("INSERT OR REPLACE INTO users (id,username,display_name,initials,role,active,password_hash,rfid_hash,created_at,created_by,must_change_password,theme,age,language_level,has_training,measure_start,motorik_level) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [
         u.id, u.username, u.display_name, u.initials || "", u.role, u.active !== false ? 1 : 0,
         u.password_hash || "", u.rfid_hash || "", u.created_at || "", u.created_by || null,
         u.must_change_password ? 1 : 0, u.theme || null,
-        u.birthdate || null, u.language_level != null ? u.language_level : 3,
-        u.has_training ? 1 : 0, u.measure_start || null]);
+        u.age != null ? u.age : null, u.language_level != null ? u.language_level : 3,
+        u.has_training ? 1 : 0, u.measure_start || null,
+        u.motorik_level != null ? u.motorik_level : 2]);
 
     for (const m of data.machines || [])
       run("INSERT OR REPLACE INTO machines VALUES (?,?,?)", [String(m.id), m.label, m.position || 0]);
@@ -231,6 +239,10 @@ const DbEngine = (() => {
     for (const [tid, m] of Object.entries(data.trainee_meta || {}))
       run("INSERT OR REPLACE INTO trainee_meta VALUES (?,?,?,?)", [
         parseInt(tid), m.feedback || "", m.conclusion || "", m.next_steps || ""]);
+
+    for (const a of data.attendance || [])
+      run("INSERT INTO attendance (trainee_id,machine_id,date,hours) VALUES (?,?,?,?)", [
+        a.trainee_id, a.machine_id || null, a.date, a.hours || 8]);
 
     for (const q of data.exam_questions || [])
       run("INSERT OR REPLACE INTO exam_questions VALUES (?,?,?,?,?,?,?,?,?,?,?)", [
@@ -276,10 +288,11 @@ const DbEngine = (() => {
       trainee_meta[r.trainee_id] = { feedback: r.feedback, conclusion: r.conclusion, next_steps: r.next_steps };
     });
 
+    const attendance = queryAll("SELECT * FROM attendance");
     const exam_questions = queryAll("SELECT * FROM exam_questions");
     const exam_results = queryAll("SELECT * FROM exam_results");
 
-    return { meta, users, machines, content_sections, learning_goals, evaluations, trainee_meta, exam_questions, exam_results };
+    return { meta, users, machines, content_sections, learning_goals, evaluations, trainee_meta, attendance, exam_questions, exam_results };
   }
 
   /* ── Persistence ── */

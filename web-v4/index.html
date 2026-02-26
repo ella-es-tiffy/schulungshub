@@ -69,6 +69,7 @@
           </div>
           <a class="user-dropdown-item" id="menu-exam-start"><span uk-icon="icon: play; ratio:0.75"></span> Selbsttest</a>
           <a class="user-dropdown-item" id="menu-exam-analysis"><span uk-icon="icon: file-text; ratio:0.75"></span> Prüfungsübersicht</a>
+          <a class="user-dropdown-item hidden" id="menu-trainee-profile"><span uk-icon="icon: user; ratio:0.75"></span> Trainee-Profil</a>
           <a class="user-dropdown-item hidden" id="menu-exam-editor"><span uk-icon="icon: database; ratio:0.75"></span> Fragen verwalten</a>
           <div class="user-dropdown-divider"></div>
           <a class="user-dropdown-item hidden" id="menu-report"><span uk-icon="icon: print; ratio:0.75"></span> Bericht erstellen</a>
@@ -183,8 +184,8 @@
       <p id="trainee-edit-name"></p>
       <div style="margin:12px 0; display:flex; flex-direction:column; gap:10px">
         <label style="font-size:12px; font-weight:600">
-          Geburtsdatum
-          <input type="date" id="trainee-birthdate" class="goal-field-input" style="width:100%">
+          Alter (Jahre)
+          <input type="number" id="trainee-age" class="goal-field-input" style="width:100%" min="14" max="70" placeholder="z.B. 25">
         </label>
         <label style="font-size:12px; font-weight:600">
           Sprachniveau
@@ -193,6 +194,15 @@
             <option value="1">1 – Grundkenntnisse</option>
             <option value="2">2 – Gute Kenntnisse</option>
             <option value="3" selected>3 – Muttersprachler</option>
+          </select>
+        </label>
+        <label style="font-size:12px; font-weight:600">
+          Motorik/Praxis
+          <select id="trainee-motorik" class="goal-field-input" style="width:100%">
+            <option value="0">0 – Keine Erfahrung</option>
+            <option value="1">1 – Wenig Erfahrung</option>
+            <option value="2" selected>2 – Durchschnittlich</option>
+            <option value="3">3 – Sehr erfahren</option>
           </select>
         </label>
         <label style="font-size:12px; font-weight:600; display:flex; align-items:center; gap:8px">
@@ -236,6 +246,7 @@
   <script src="js/render.js"></script>
   <script src="js/exam.js"></script>
   <script src="js/admin.js"></script>
+  <script src="js/trainee-profile.js"></script>
   <script src="js/export.js"></script>
   <!-- Orchestrierung -->
   <script src="js/app.js"></script>

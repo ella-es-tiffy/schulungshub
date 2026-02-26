@@ -4,7 +4,7 @@
    Depends on: all js/*.js modules, db-engine.js
    ================================================================ */
 
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.4.0";
 const DATA_KEY    = Crypto.DATA_KEY;
 
 /* ── Save Status ── */
@@ -139,6 +139,8 @@ function bindGlobalEvents() {
       if (examEditorItem) examEditorItem.classList.toggle("hidden", !canAdmin());
       const reportItem = $("#menu-report");
       if (reportItem) reportItem.classList.toggle("hidden", !canVerify());
+      const profileItem = $("#menu-trainee-profile");
+      if (profileItem) profileItem.classList.toggle("hidden", !S.selectedTraineeId);
     }
   });
 
@@ -183,6 +185,13 @@ function bindGlobalEvents() {
     const dd = $("#user-dropdown");
     if (dd) dd.classList.add("hidden");
     openExamAnalysis();
+  });
+
+  const menuTraineeProfile = $("#menu-trainee-profile");
+  if (menuTraineeProfile) menuTraineeProfile.addEventListener("click", () => {
+    const dd = $("#user-dropdown");
+    if (dd) dd.classList.add("hidden");
+    openTraineeProfile();
   });
 
   const menuExamEditor = $("#menu-exam-editor");
