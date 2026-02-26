@@ -1,133 +1,14 @@
 /* ================================================================
    SchulungsHub v4 – Application Logic
    NAS = Single Source of Truth, Direct SQL, Debounced Persist
-   Depends on: js/utils.js, js/crypto.js, js/markdown.js, js/state.js, js/eval.js, db-engine.js
+   Depends on: js/utils.js, js/crypto.js, js/markdown.js, js/state.js, js/eval.js, js/prefs.js, js/auth.js, db-engine.js
    ================================================================ */
 
 /* ── 1. Config ── */
-const APP_VERSION = "0.1.6";
-const SESSION_KEY = "schulungsHub.session";
-const PREFS_KEY   = "schulungsHub.prefs";
+const APP_VERSION = "0.1.7";
 const DATA_KEY    = Crypto.DATA_KEY;
 
-/* ── State, Eval, Markdown → js/state.js, js/eval.js, js/markdown.js ── */
-
-/* ── 8. Auth ── */
-async function loginPassword(username, password) {
-  const u = allUsers().find(u => u.username.toLowerCase() === username.toLowerCase());
-  return u && (await verifyPassword(password, u.password_hash)) ? u : null;
-}
-
-function loginRfid(tagHash) {
-  const h = tagHash.trim().toLowerCase();
-  return allUsers().find(u => (u.rfid_hash || "").toLowerCase() === h) || null;
-}
-
-async function setSession(user) {
-  S.user = user;
-  if (user) {
-    const payload = String(user.id);
-    const sig = await hmacSign(payload);
-    sessionStorage.setItem(SESSION_KEY, payload + "." + sig);
-    sessionStorage.setItem(SESSION_KEY + ".time", String(Date.now()));
-  } else {
-    sessionStorage.removeItem(SESSION_KEY);
-    sessionStorage.removeItem(SESSION_KEY + ".time");
-  }
-}
-
-async function restoreSession() {
-  const raw = sessionStorage.getItem(SESSION_KEY);
-  if (!raw || !raw.includes(".")) { S.user = null; return; }
-  const [payload, sig] = raw.split(".");
-  if (!payload || !sig || !(await hmacVerify(payload, sig))) {
-    sessionStorage.removeItem(SESSION_KEY);
-    S.user = null;
-    return;
-  }
-  const id = parseInt(payload, 10);
-  const u = id ? findUser(id) : null;
-  if (u) { S.user = u; } else { S.user = null; }
-}
-
-function getSessionAge() {
-  const t = parseInt(sessionStorage.getItem(SESSION_KEY + ".time"), 10);
-  if (!t) return Infinity;
-  return Date.now() - t;
-}
-
-/* ── Shift-change auto-logout ── */
-const SHIFT_TIMES = [6, 14, 22]; // Schichtwechsel um 6:00, 14:00, 22:00
-const SHIFT_GRACE = 30; // Minuten vor Schichtwechsel = gehört zur nächsten Schicht
-
-function getSessionStart() {
-  return parseInt(sessionStorage.getItem(SESSION_KEY + ".time"), 10) || 0;
-}
-
-// Returns the shift boundary this session should be logged out at.
-// If login was within 30 min before a shift, that shift is skipped.
-function getLogoutShift() {
-  const loginTime = getSessionStart();
-  if (!loginTime) return null;
-  const login = new Date(loginTime);
-  const now = new Date();
-
-  // Build list of upcoming shift boundaries from login time
-  for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-    for (const sh of SHIFT_TIMES) {
-      const boundary = new Date(login);
-      boundary.setDate(boundary.getDate() + dayOffset);
-      boundary.setHours(sh, 0, 0, 0);
-      if (boundary <= login) continue; // in the past relative to login
-      if (boundary < now && !(boundary.getHours() === now.getHours() && now.getMinutes() <= 1)) continue; // already passed
-
-      // How long before this boundary did the user log in?
-      const minsBeforeBoundary = (boundary - login) / 60000;
-
-      // If login was within grace period, skip this boundary
-      if (minsBeforeBoundary <= SHIFT_GRACE) continue;
-
-      return { hour: sh, date: boundary };
-    }
-  }
-  return null;
-}
-
-function getShiftCountdown() {
-  const target = getLogoutShift();
-  if (!target) return { hours: 0, mins: 0, nextShift: SHIFT_TIMES[0] };
-  const diff = Math.max(0, target.date - Date.now());
-  const hours = Math.floor(diff / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  return { hours, mins, nextShift: target.hour };
-}
-
-function updateSessionTimer() {
-  const el = $("#session-timer");
-  if (!el || !S.user) return;
-  const { hours, mins, nextShift } = getShiftCountdown();
-  const pad = n => String(n).padStart(2, "0");
-  el.textContent = `⏱ ${pad(hours)}:${pad(mins)}`;
-  el.title = `Auto-Logout um ${pad(nextShift)}:00`;
-  el.classList.toggle("timer-warn", hours === 0 && mins <= 10);
-}
-
-function setupShiftLogout() {
-  updateSessionTimer();
-  setInterval(() => {
-    if (!S.user) return;
-    updateSessionTimer();
-
-    const target = getLogoutShift();
-    if (!target) return;
-    const now = new Date();
-    // Trigger if we're at the target boundary (within first 2 minutes)
-    if (now.getHours() === target.hour && now.getMinutes() <= 1 && target.date <= now) {
-      notify("Schichtwechsel – automatisch abgemeldet.", "warning");
-      handleLogout();
-    }
-  }, 30000);
-}
+/* ── Modules → js/state.js, js/eval.js, js/markdown.js, js/auth.js, js/prefs.js ── */
 
 /* ── 9. Save Status ── */
 
@@ -169,52 +50,6 @@ function showSaveError() {
 /* ── 10. Notifications ── */
 function notify(msg, type = "primary") {
   if (window.UIkit) UIkit.notification(msg, { status: type, pos: "bottom-right", timeout: 3000 });
-}
-
-/* ── 11. Preferences ── */
-function loadPrefs() {
-  try { Object.assign(S.prefs, JSON.parse(localStorage.getItem(PREFS_KEY))); } catch { /* */ }
-}
-
-function savePrefs() { localStorage.setItem(PREFS_KEY, JSON.stringify(S.prefs)); }
-
-function applyTheme(theme) {
-  S.prefs.theme = theme;
-  document.documentElement.dataset.theme = theme;
-  updateThemeIcon();
-  savePrefs();
-
-  // Persist theme preference in user object
-  if (S.user) {
-    DbEngine.run("UPDATE users SET theme=? WHERE id=?", [theme, S.user.id]);
-  }
-}
-
-function applyFont(size) {
-  S.prefs.font = size;
-  document.documentElement.className = `font-${size.toLowerCase()}`;
-  $$(".font-switcher button").forEach(b => b.classList.toggle("active", b.dataset.font === size));
-  savePrefs();
-}
-
-function updateThemeIcon() {
-  const icon = $("#theme-icon");
-  if (icon) icon.textContent = S.prefs.theme === "light" ? "☀" : "☽";
-}
-
-function toggleThemeReveal() {
-  const newTheme = S.prefs.theme === "light" ? "dark" : "light";
-  const overlay = $("#theme-reveal");
-
-  if (!overlay) { applyTheme(newTheme); return; }
-
-  overlay.style.backgroundColor = newTheme === "dark" ? "#121212" : "#ffffff";
-  overlay.classList.add("revealing");
-
-  setTimeout(() => {
-    applyTheme(newTheme);
-    setTimeout(() => overlay.classList.remove("revealing"), 600);
-  }, 400);
 }
 
 /* ── 11b. Search ── */
@@ -1616,16 +1451,6 @@ function updateTraineeSelect() {
     sel.appendChild(opt);
   });
   if (S.selectedTraineeId) sel.value = S.selectedTraineeId;
-}
-
-/* ── 22. Login ── */
-function redirectToLogin() {
-  window.location.href = "login.html";
-}
-
-async function handleLogout() {
-  await setSession(null);
-  redirectToLogin();
 }
 
 /* ── 23. Change Password ── */
