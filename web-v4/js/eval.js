@@ -94,11 +94,12 @@ const Eval = (() => {
 
     const individualFactor = trainingFactor * ageFactor * languageFactor;
 
-    // ── 7. Final ──
+    // ── 7. Final — anchor to measure start (like Excel) ──
     const remainingWeeks = (weightedRemaining / Math.max(velocity, 0.0001))
       * PHASE_FACTORS[currentPhase] * errorFactor * individualFactor * 1.1;
 
-    const endDate = new Date(Date.now() + remainingWeeks * 7 * 86400000);
+    const startMs = new Date(measureStart).getTime();
+    const endDate = new Date(startMs + remainingWeeks * 7 * 86400000);
     return { date: endDate, kw: getCalendarWeek(endDate) };
   }
 
