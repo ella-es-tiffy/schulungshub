@@ -1579,6 +1579,21 @@ a:hover { opacity: 0.8; }
 
 .section-print-btn:hover { opacity: 1; color: var(--accent); }
 
+.section-admin-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  opacity: 0;
+  cursor: pointer;
+  padding: 2px;
+  margin-left: 2px;
+  transition: opacity 0.2s, color 0.2s;
+  vertical-align: middle;
+}
+.doc-section:hover .section-admin-btn { opacity: 0.5; }
+.section-admin-btn:hover { opacity: 1 !important; color: var(--accent); }
+.section-delete-btn:hover { color: #ef4444 !important; }
+
 /* ── Markdown Content Styling ── */
 .md-content { line-height: 1.75; color: var(--text); }
 
@@ -3078,7 +3093,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
   .app-header, .app-sidebar, .scroll-top-btn,
   .mobile-hamburger, .mobile-overlay,
   .theme-reveal-overlay, .rating-pill,
-  .section-edit-btn, .section-print-btn, .editor-wrap,
+  .section-edit-btn, .section-print-btn, .section-admin-btn, .editor-wrap,
   .sort-arrows, .goal-sort-controls, #btn-sort-mode { display: none !important; }
 
   .content-pane {

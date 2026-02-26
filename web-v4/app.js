@@ -907,10 +907,16 @@ function buildContentSectionHtml(sec) {
   const printBtn = canVerify()
     ? `<button class="section-print-btn" data-section-id="${sec.id}" title="Drucken"><span uk-icon="icon: print; ratio:0.8"></span></button>`
     : "";
+  const adminBtns = canAdmin()
+    ? `<button class="section-admin-btn section-add-child-btn" data-section-id="${sec.id}" title="Unterpunkt hinzufügen"><span uk-icon="icon: plus; ratio:0.7"></span></button>
+       <button class="section-admin-btn section-move-up-btn" data-section-id="${sec.id}" title="Nach oben"><span uk-icon="icon: chevron-up; ratio:0.7"></span></button>
+       <button class="section-admin-btn section-move-down-btn" data-section-id="${sec.id}" title="Nach unten"><span uk-icon="icon: chevron-down; ratio:0.7"></span></button>
+       <button class="section-admin-btn section-delete-btn" data-section-id="${sec.id}" title="Löschen"><span uk-icon="icon: trash; ratio:0.7"></span></button>`
+    : "";
 
   const titleAttr = canAdmin() ? ` data-section-id="${sec.id}" title="Doppelklick zum Umbenennen"` : "";
   return `<div class="doc-section" id="sec-${sec.id}">
-    <h2><span class="section-title"${titleAttr}>${esc(sec.title)}</span> ${editBtn} ${printBtn}</h2>
+    <h2><span class="section-title"${titleAttr}>${esc(sec.title)}</span> ${editBtn} ${printBtn} ${adminBtns}</h2>
     <div class="md-content">${html || '<p style="opacity:0.4">Noch kein Inhalt.</p>'}</div>
   </div>`;
 }
@@ -1164,6 +1170,20 @@ function bindPageEvents() {
   // Print buttons
   $$(".section-print-btn").forEach(btn => {
     btn.addEventListener("click", () => printSection(btn.dataset.sectionId));
+  });
+
+  // Section admin buttons (add child, move, delete)
+  $$(".section-add-child-btn").forEach(btn => {
+    btn.addEventListener("click", () => handleAddSection(btn.dataset.sectionId));
+  });
+  $$(".section-delete-btn").forEach(btn => {
+    btn.addEventListener("click", () => handleDeleteSection(btn.dataset.sectionId));
+  });
+  $$(".section-move-up-btn").forEach(btn => {
+    btn.addEventListener("click", () => handleMoveSection(btn.dataset.sectionId, "up"));
+  });
+  $$(".section-move-down-btn").forEach(btn => {
+    btn.addEventListener("click", () => handleMoveSection(btn.dataset.sectionId, "down"));
   });
 
   // Data management buttons (admin)
@@ -1636,29 +1656,84 @@ function findSection(id) {
   return null;
 }
 
-async function handleAddSection() {
-  const title = prompt("Titel der neuen Sektion:");
+async function handleAddSection(parentId = null) {
+  const label = parentId ? "Titel des Unterpunkts:" : "Titel der neuen Sektion:";
+  const title = prompt(label);
   if (!title || !title.trim()) return;
 
   const id = title.trim().toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").replace(/^-|-$/g, "");
-  const sections = S.db.content_sections || [];
-  const maxPos = sections.reduce((m, s) => Math.max(m, s.position || 0), 0);
+  // Get max position among siblings
+  const siblings = DbEngine.queryAll(
+    parentId
+      ? "SELECT position FROM content_sections WHERE parent_id = ? ORDER BY position DESC LIMIT 1"
+      : "SELECT position FROM content_sections WHERE parent_id IS NULL ORDER BY position DESC LIMIT 1",
+    parentId ? [parentId] : []
+  );
+  const maxPos = siblings.length ? (siblings[0].position || 0) : 0;
 
   const secId = id || `sec-${Date.now()}`;
   const now = nowIso();
   DbEngine.runBatch("INSERT INTO content_sections (id, title, position, content_md, parent_id, updated_at) VALUES (?,?,?,?,?,?)",
-    [secId, title.trim(), maxPos + 1, "", null, now]);
+    [secId, title.trim(), maxPos + 1, "", parentId, now]);
   await DbEngine.persistNow();
   reloadState();
   renderSidebar();
   renderPage();
-  notify("Sektion erstellt!", "success");
+  notify(parentId ? "Unterpunkt erstellt!" : "Sektion erstellt!", "success");
 
-  // Scroll to new section
   setTimeout(() => {
     const el = document.getElementById(`sec-${secId}`);
-    if (el) { el.classList.add("visible"); window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" }); }
+    if (el) { el.classList.add("visible"); window.scrollTo({ top: el.offsetTop - 70, behavior: "instant" }); }
   }, 100);
+}
+
+async function handleDeleteSection(secId) {
+  const sec = findSection(secId);
+  if (!sec) return;
+  const childCount = (sec.children || []).reduce((n, ch) => n + 1 + (ch.children || []).length, 0);
+  const msg = childCount
+    ? `"${sec.title}" und ${childCount} Unterpunkt(e) wirklich löschen?`
+    : `"${sec.title}" wirklich löschen?`;
+  if (!confirm(msg)) return;
+
+  // Collect all IDs to delete (section + all descendants)
+  const ids = [secId];
+  (sec.children || []).forEach(ch => {
+    ids.push(ch.id);
+    (ch.children || []).forEach(sub => ids.push(sub.id));
+  });
+  ids.forEach(id => DbEngine.run("DELETE FROM content_sections WHERE id = ?", [id]));
+  await DbEngine.persistNow();
+  reloadState();
+  renderSidebar();
+  renderPage();
+  notify("Gelöscht!", "success");
+}
+
+async function handleMoveSection(secId, direction) {
+  const row = DbEngine.queryAll("SELECT id, parent_id, position FROM content_sections WHERE id = ?", [secId])[0];
+  if (!row) return;
+  const parentId = row.parent_id;
+  const siblings = DbEngine.queryAll(
+    parentId
+      ? "SELECT id, position FROM content_sections WHERE parent_id = ? ORDER BY position"
+      : "SELECT id, position FROM content_sections WHERE parent_id IS NULL ORDER BY position",
+    parentId ? [parentId] : []
+  );
+  const idx = siblings.findIndex(s => s.id === secId);
+  if (idx < 0) return;
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= siblings.length) return;
+
+  // Swap positions
+  const posA = siblings[idx].position;
+  const posB = siblings[swapIdx].position;
+  DbEngine.run("UPDATE content_sections SET position = ? WHERE id = ?", [posB, siblings[idx].id]);
+  DbEngine.run("UPDATE content_sections SET position = ? WHERE id = ?", [posA, siblings[swapIdx].id]);
+  await DbEngine.persistNow();
+  reloadState();
+  renderSidebar();
+  renderPage();
 }
 
 /* ── 19. Report ── */
