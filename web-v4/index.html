@@ -176,6 +176,41 @@
     </div>
   </dialog>
 
+  <!-- ── TRAINEE EDIT DIALOG ── -->
+  <dialog id="trainee-edit-dialog" class="rfid-dialog">
+    <div class="rfid-assign-card" style="max-width:380px">
+      <h3>Prognose-Daten</h3>
+      <p id="trainee-edit-name"></p>
+      <div style="margin:12px 0; display:flex; flex-direction:column; gap:10px">
+        <label style="font-size:12px; font-weight:600">
+          Geburtsdatum
+          <input type="date" id="trainee-birthdate" class="goal-field-input" style="width:100%">
+        </label>
+        <label style="font-size:12px; font-weight:600">
+          Sprachniveau
+          <select id="trainee-language" class="goal-field-input" style="width:100%">
+            <option value="0">0 – Keine Deutschkenntnisse</option>
+            <option value="1">1 – Grundkenntnisse</option>
+            <option value="2">2 – Gute Kenntnisse</option>
+            <option value="3" selected>3 – Muttersprachler</option>
+          </select>
+        </label>
+        <label style="font-size:12px; font-weight:600; display:flex; align-items:center; gap:8px">
+          <input type="checkbox" id="trainee-training">
+          Berufliche Vorbildung vorhanden
+        </label>
+        <label style="font-size:12px; font-weight:600">
+          Massnahme-Start
+          <input type="date" id="trainee-measure-start" class="goal-field-input" style="width:100%">
+        </label>
+      </div>
+      <div class="rfid-assign-actions">
+        <button class="btn-secondary btn-sm" id="trainee-edit-cancel">Abbrechen</button>
+        <button class="btn-primary btn-sm" id="trainee-edit-save">Speichern</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- ── HIDDEN FILE INPUT (Sync) ── -->
   <input type="file" id="import-file-input" accept=".json,application/json" hidden>
 

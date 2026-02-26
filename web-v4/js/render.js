@@ -235,7 +235,7 @@ function buildDashboardHtml() {
           </div>
           <div class="stat-card">
             <div class="label">Gesch. Ende</div>
-            <div class="value">${eta ? formatDateShort(eta.toISOString()) : "-"}</div>
+            <div class="value">${eta && eta.date.getFullYear() - new Date().getFullYear() < 10 ? formatDateKW(eta.date) : "-"}</div>
           </div>
         </div>
         <div class="phase-progress-section">

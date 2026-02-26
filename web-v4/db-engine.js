@@ -44,7 +44,9 @@ const DbEngine = (() => {
       id INTEGER PRIMARY KEY, username TEXT NOT NULL, display_name TEXT NOT NULL,
       initials TEXT, role TEXT NOT NULL DEFAULT 'trainee', active INTEGER NOT NULL DEFAULT 1,
       password_hash TEXT, rfid_hash TEXT, created_at TEXT, created_by INTEGER,
-      must_change_password INTEGER DEFAULT 0, theme TEXT
+      must_change_password INTEGER DEFAULT 0, theme TEXT,
+      birthdate TEXT, language_level INTEGER DEFAULT 3,
+      has_training INTEGER DEFAULT 0, measure_start TEXT
     );
     CREATE TABLE IF NOT EXISTS machines (id TEXT PRIMARY KEY, label TEXT NOT NULL, position INTEGER DEFAULT 0);
     CREATE TABLE IF NOT EXISTS content_sections (
@@ -87,6 +89,10 @@ const DbEngine = (() => {
       "ALTER TABLE evaluations ADD COLUMN action TEXT",
       "ALTER TABLE evaluations ADD COLUMN evaluated_by INTEGER",
       "ALTER TABLE evaluations ADD COLUMN evaluated_at TEXT",
+      "ALTER TABLE users ADD COLUMN birthdate TEXT",
+      "ALTER TABLE users ADD COLUMN language_level INTEGER DEFAULT 3",
+      "ALTER TABLE users ADD COLUMN has_training INTEGER DEFAULT 0",
+      "ALTER TABLE users ADD COLUMN measure_start TEXT",
     ];
     for (const sql of migrations) {
       try { db.exec(sql); } catch { /* exists */ }
@@ -194,10 +200,12 @@ const DbEngine = (() => {
       run("INSERT OR REPLACE INTO meta VALUES (?,?)", [k, String(v ?? "")]);
 
     for (const u of data.users || [])
-      run("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", [
+      run("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [
         u.id, u.username, u.display_name, u.initials || "", u.role, u.active !== false ? 1 : 0,
         u.password_hash || "", u.rfid_hash || "", u.created_at || "", u.created_by || null,
-        u.must_change_password ? 1 : 0, u.theme || null]);
+        u.must_change_password ? 1 : 0, u.theme || null,
+        u.birthdate || null, u.language_level != null ? u.language_level : 3,
+        u.has_training ? 1 : 0, u.measure_start || null]);
 
     for (const m of data.machines || [])
       run("INSERT OR REPLACE INTO machines VALUES (?,?,?)", [String(m.id), m.label, m.position || 0]);
@@ -244,6 +252,7 @@ const DbEngine = (() => {
 
     const users = queryAll("SELECT * FROM users").map(u => ({
       ...u, active: u.active !== 0, must_change_password: !!u.must_change_password,
+      has_training: !!u.has_training,
     }));
     const machines = queryAll("SELECT * FROM machines ORDER BY position");
     const learning_goals = queryAll("SELECT * FROM learning_goals ORDER BY position");

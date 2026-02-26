@@ -30,6 +30,7 @@ const State = (() => {
 
     const users = DbEngine.queryAll("SELECT * FROM users").map(u => ({
       ...u, active: u.active !== 0, must_change_password: !!u.must_change_password,
+      has_training: !!u.has_training,
     }));
 
     const machines = DbEngine.queryAll("SELECT * FROM machines ORDER BY position");

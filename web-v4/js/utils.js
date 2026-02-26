@@ -37,7 +37,21 @@ const Utils = (() => {
     return arr.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
   }
 
-  return { $, $$, nowIso, deepClone, esc, formatDate, formatDateShort, debounce, nextId };
+  function getCalendarWeek(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+  }
+
+  function formatDateKW(d) {
+    if (!d) return "-";
+    const dateStr = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+    const kw = getCalendarWeek(d);
+    return `${dateStr} (KW${kw})`;
+  }
+
+  return { $, $$, nowIso, deepClone, esc, formatDate, formatDateShort, debounce, nextId, getCalendarWeek, formatDateKW };
 })();
 
 /* Global shortcuts for convenience (used everywhere) */
@@ -50,3 +64,5 @@ const formatDate = Utils.formatDate;
 const formatDateShort = Utils.formatDateShort;
 const debounce = Utils.debounce;
 const nextId = Utils.nextId;
+const getCalendarWeek = Utils.getCalendarWeek;
+const formatDateKW = Utils.formatDateKW;

@@ -4,7 +4,7 @@
    Depends on: all js/*.js modules, db-engine.js
    ================================================================ */
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.3.0";
 const DATA_KEY    = Crypto.DATA_KEY;
 
 /* ── Save Status ── */

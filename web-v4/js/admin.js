@@ -111,6 +111,7 @@ function renderUserManagementDialog() {
         <span class="usermgmt-meta">${roleLabel} · ${esc(u.username)} · angelegt: ${date} · von: ${esc(creator)}</span>
       </div>
       <div class="usermgmt-row-actions">
+        ${u.role === "trainee" ? `<button class="btn-icon umgmt-edit" data-user-id="${u.id}" title="Prognose-Daten"><span uk-icon="icon: file-edit; ratio:0.75"></span></button>` : ""}
         ${rfidBtn}
         <button class="btn-icon umgmt-reset-pw" data-user-id="${u.id}" title="Passwort zurücksetzen"><span uk-icon="icon: lock; ratio:0.75"></span></button>
         <button class="btn-icon umgmt-delete" data-user-id="${u.id}" title="Entfernen"><span uk-icon="icon: trash; ratio:0.75"></span></button>
@@ -156,6 +157,13 @@ function renderUserManagementDialog() {
     btn.addEventListener("click", () => {
       const uid = parseInt(btn.dataset.userId, 10);
       openRfidAssign(uid);
+    });
+  });
+
+  // Bind trainee edit buttons
+  list.querySelectorAll(".umgmt-edit").forEach(btn => {
+    btn.addEventListener("click", () => {
+      openTraineeEdit(parseInt(btn.dataset.userId, 10));
     });
   });
 }
@@ -261,6 +269,57 @@ function openRfidAssign(userId) {
   setTimeout(() => input.focus(), 50);
 }
 
+/* ── Trainee Forecast Edit ── */
+function openTraineeEdit(userId) {
+  if (!canVerify()) return;
+  const user = S.db.users.find(u => u.id === userId);
+  if (!user) return;
+
+  const dlg = $("#trainee-edit-dialog");
+  if (!dlg) return;
+
+  $("#trainee-edit-name").innerHTML = `<strong>${esc(user.display_name)}</strong>`;
+
+  const fBirth = $("#trainee-birthdate");
+  const fLang = $("#trainee-language");
+  const fTraining = $("#trainee-training");
+  const fStart = $("#trainee-measure-start");
+
+  fBirth.value = user.birthdate ? user.birthdate.slice(0, 10) : "";
+  fLang.value = user.language_level != null ? user.language_level : 3;
+  fTraining.checked = !!user.has_training;
+  fStart.value = user.measure_start ? user.measure_start.slice(0, 10) : "";
+
+  // Clone buttons to remove old listeners
+  const saveBtn = $("#trainee-edit-save");
+  const newSave = saveBtn.cloneNode(true);
+  saveBtn.replaceWith(newSave);
+  const cancelBtn = $("#trainee-edit-cancel");
+  const newCancel = cancelBtn.cloneNode(true);
+  cancelBtn.replaceWith(newCancel);
+
+  newSave.addEventListener("click", async () => {
+    const birthdate = fBirth.value || null;
+    const languageLevel = parseInt(fLang.value) || 3;
+    const hasTraining = fTraining.checked ? 1 : 0;
+    const measureStart = fStart.value ? new Date(fStart.value).toISOString() : null;
+
+    DbEngine.runBatch(
+      "UPDATE users SET birthdate=?, language_level=?, has_training=?, measure_start=? WHERE id=?",
+      [birthdate, languageLevel, hasTraining, measureStart, userId]
+    );
+    await DbEngine.persistNow();
+    reloadState();
+    dlg.close();
+    renderUserManagementDialog();
+    notify(`Daten von ${user.display_name} aktualisiert.`, "success");
+  });
+
+  newCancel.addEventListener("click", () => dlg.close());
+  dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }, { once: true });
+  dlg.showModal();
+}
+
 /* ── 24. Admin ── */
 async function handleDeleteUser(userId) {
   if (!canVerify()) return;
@@ -325,8 +384,8 @@ async function handleCreateUser(e) {
   const newId = nextId(S.db.users);
   const now = nowIso();
   DbEngine.runBatch(
-    "INSERT INTO users (id,username,display_name,initials,role,active,password_hash,rfid_hash,created_at,created_by,must_change_password,theme) VALUES (?,?,?,?,?,1,?,?,?,?,1,NULL)",
-    [newId, uname, displayName, initials, role, passwordHash, rfidHash, now, S.user.id]
+    "INSERT INTO users (id,username,display_name,initials,role,active,password_hash,rfid_hash,created_at,created_by,must_change_password,theme,birthdate,language_level,has_training,measure_start) VALUES (?,?,?,?,?,1,?,?,?,?,1,NULL,NULL,3,0,?)",
+    [newId, uname, displayName, initials, role, passwordHash, rfidHash, now, S.user.id, now]
   );
   await DbEngine.persistNow();
   reloadState();
@@ -342,7 +401,7 @@ async function handleCreateUser(e) {
   return {
     updateUserUi, updateTraineeSelect, openChangePassword,
     handleChangePassword, openUserManagement, renderUserManagementDialog,
-    handleResetPassword, openRfidAssign, handleDeleteUser, handleCreateUser,
+    handleResetPassword, openRfidAssign, openTraineeEdit, handleDeleteUser, handleCreateUser,
   };
 })();
 
@@ -357,3 +416,4 @@ const handleDeleteUser = Admin.handleDeleteUser;
 const handleCreateUser = Admin.handleCreateUser;
 const openRfidAssign = Admin.openRfidAssign;
 const handleResetPassword = Admin.handleResetPassword;
+const openTraineeEdit = Admin.openTraineeEdit;
