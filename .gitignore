@@ -9,3 +9,4 @@ data/
 scripts/
 web-v4/data-seed.js
 web-v4/wasm-seed.js
+img/
