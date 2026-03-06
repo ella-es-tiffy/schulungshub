@@ -5,6 +5,29 @@
                js/editor.js, js/scoring.js, js/sidebar.js
    ================================================================ */
 const Render = (() => {
+
+/* ── Hash-Navigation ── */
+function navigateToSection(targetId) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.classList.add("visible");
+  window.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+  history.replaceState(null, "", "#" + targetId);
+}
+
+function restoreHash() {
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+  // Small delay to let fade-in observer set up
+  requestAnimationFrame(() => {
+    const el = document.getElementById(hash);
+    if (el) {
+      el.classList.add("visible");
+      window.scrollTo({ top: el.offsetTop - 70, behavior: "instant" });
+    }
+  });
+}
+
 /* ── 13. ScrollSpy (FlyRing pattern) ── */
 function setupScrollSpy() {
   window.addEventListener("scroll", () => {
@@ -15,6 +38,11 @@ function setupScrollSpy() {
       const rect = sec.getBoundingClientRect();
       if (rect.top <= 120) current = sec.id;
     });
+
+    // Update URL hash silently
+    if (current) {
+      history.replaceState(null, "", "#" + current);
+    }
 
     // Sidebar links
     $$(".nav-link[data-target]").forEach(link => {
@@ -171,10 +199,15 @@ function renderPage() {
   // Bind events
   bindPageEvents();
   setupFadeObserver();
+  initSlideshows(pane);
 
-  // Reveal first section immediately
-  const first = pane.querySelector(".doc-section");
-  if (first) first.classList.add("visible");
+  // Restore scroll position from hash, or reveal first section
+  if (location.hash) {
+    restoreHash();
+  } else {
+    const first = pane.querySelector(".doc-section");
+    if (first) first.classList.add("visible");
+  }
 }
 
 function canDeleteExams(traineeId) {
@@ -528,6 +561,15 @@ function bindPageEvents() {
     btn.addEventListener("click", () => handleMoveSection(btn.dataset.sectionId, "down"));
   });
 
+  // Internal hash links in markdown content
+  pane.querySelectorAll('.md-content a[href^="#"]').forEach(a => {
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      const target = a.getAttribute("href").slice(1);
+      if (target) navigateToSection(target);
+    });
+  });
+
   // Data management buttons (admin)
   const exportDb = $("#btn-export-db");
   if (exportDb) exportDb.addEventListener("click", exportSqliteDb);
@@ -675,6 +717,7 @@ function printSection(sectionId) {
 }
 
   return {
+    navigateToSection, restoreHash,
     setupScrollSpy, setupFadeObserver, toggleSortMode, savePhaseOrder,
     movePhase, moveMachine, moveGoal, reassignGoal, renderPage,
     canDeleteExams, buildDashboardHtml, buildContentSectionHtml,
@@ -684,6 +727,8 @@ function printSection(sectionId) {
 })();
 
 /* Global shortcuts */
+const navigateToSection = Render.navigateToSection;
+const restoreHash = Render.restoreHash;
 const setupScrollSpy = Render.setupScrollSpy;
 const setupFadeObserver = Render.setupFadeObserver;
 const toggleSortMode = Render.toggleSortMode;

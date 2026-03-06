@@ -32,11 +32,15 @@ const Editor = (() => {
           <button type="button" data-prefix="- " title="Liste">List</button>
           <button type="button" data-prefix="1. " title="Num. Liste">1.</button>
           <button type="button" data-action="code" title="Code (inline / Block)">Code</button>
-          <button type="button" data-block="note" title="Note">Note</button>
-          <button type="button" data-block="tip" title="Tip">Tip</button>
-          <button type="button" data-block="warning" title="Warnung">Warn</button>
-          <button type="button" data-block="important" title="Wichtig">Imp</button>
+          <button type="button" data-block="note" title="Hinweis">Hinweis</button>
+          <button type="button" data-block="tip" title="Tipp">Tipp</button>
+          <button type="button" data-block="warning" title="Warnung">Warnung</button>
+          <button type="button" data-block="important" title="Achtung">Achtung</button>
           <button type="button" data-action="slideshow" title="Slideshow">Slides</button>
+          <span class="toolbar-sep"></span>
+          <button type="button" data-stoerung="gelb" title="Störung Gelb" style="background:#ffd600;color:#000;border-radius:4px">Gelb</button>
+          <button type="button" data-stoerung="orange" title="Störung Orange" style="background:#ff9100;color:#000;border-radius:4px">Orange</button>
+          <button type="button" data-stoerung="rot" title="Störung Rot" style="background:#ff1744;color:#000;border-radius:4px">Rot</button>
         </div>
         <div class="editor-split">
           <div class="editor-input">
@@ -54,7 +58,7 @@ const Editor = (() => {
     const textarea = $("#editor-textarea");
     const preview = $("#editor-preview");
 
-    const updatePreview = () => { preview.innerHTML = renderMarkdown(textarea.value); };
+    const updatePreview = () => { preview.innerHTML = renderMarkdown(textarea.value); initSlideshows(preview); };
     updatePreview();
     textarea.addEventListener("input", debounce(updatePreview, 200));
 
@@ -65,6 +69,7 @@ const Editor = (() => {
         else if (btn.dataset.block) blockSelection(textarea, btn.dataset.block);
         else if (btn.dataset.action === "code") codeSelection(textarea);
         else if (btn.dataset.action === "slideshow") slideshowSelection(textarea);
+        else if (btn.dataset.stoerung) stoerungSelection(textarea, btn.dataset.stoerung);
         updatePreview();
       });
     });
@@ -162,6 +167,17 @@ const Editor = (() => {
     textarea.focus();
   }
 
+  function stoerungSelection(textarea, color) {
+    const s = textarea.selectionStart, e = textarea.selectionEnd;
+    const sel = textarea.value.slice(s, e) || "Störungstext hier...";
+    const block = `\n:::${color}\n${sel}\n:::\n`;
+    textarea.value = textarea.value.slice(0, s) + block + textarea.value.slice(e);
+    const textStart = s + 4 + color.length + 1;
+    textarea.selectionStart = textStart;
+    textarea.selectionEnd = textStart + sel.length;
+    textarea.focus();
+  }
+
   function blockSelection(textarea, type) {
     const s = textarea.selectionStart, e = textarea.selectionEnd;
     const sel = textarea.value.slice(s, e) || "Text hier...";
@@ -254,15 +270,11 @@ const Editor = (() => {
     DbEngine.runBatch("INSERT INTO content_sections (id, title, position, content_md, parent_id, updated_at) VALUES (?,?,?,?,?,?)",
       [secId, title.trim(), maxPos + 1, "", parentId, now]);
     await DbEngine.persistNow();
+    history.replaceState(null, "", "#sec-" + secId);
     reloadState();
     renderSidebar();
     renderPage();
     notify(parentId ? "Unterpunkt erstellt!" : "Sektion erstellt!", "success");
-
-    setTimeout(() => {
-      const el = document.getElementById(`sec-${secId}`);
-      if (el) { el.classList.add("visible"); window.scrollTo({ top: el.offsetTop - 70, behavior: "instant" }); }
-    }, 100);
   }
 
   async function handleDeleteSection(secId) {
@@ -274,6 +286,12 @@ const Editor = (() => {
       : `"${sec.title}" wirklich löschen?`;
     if (!confirm(msg)) return;
 
+    // Find next sibling to scroll to after delete
+    const el = document.getElementById("sec-" + secId);
+    const nextEl = el && el.nextElementSibling;
+    const prevEl = el && el.previousElementSibling;
+    const stayAt = (nextEl && nextEl.id) || (prevEl && prevEl.id) || "";
+
     const ids = [secId];
     (sec.children || []).forEach(ch => {
       ids.push(ch.id);
@@ -281,6 +299,7 @@ const Editor = (() => {
     });
     ids.forEach(id => DbEngine.run("DELETE FROM content_sections WHERE id = ?", [id]));
     await DbEngine.persistNow();
+    if (stayAt) history.replaceState(null, "", "#" + stayAt);
     reloadState();
     renderSidebar();
     renderPage();
@@ -307,6 +326,7 @@ const Editor = (() => {
     DbEngine.run("UPDATE content_sections SET position = ? WHERE id = ?", [posB, siblings[idx].id]);
     DbEngine.run("UPDATE content_sections SET position = ? WHERE id = ?", [posA, siblings[swapIdx].id]);
     await DbEngine.persistNow();
+    history.replaceState(null, "", "#sec-" + secId);
     reloadState();
     renderSidebar();
     renderPage();
@@ -314,7 +334,7 @@ const Editor = (() => {
 
   return {
     openEditor, prefixSelection, wrapSelection, codeSelection, slideshowSelection,
-    blockSelection, startInlineRename, findSection, handleAddSection,
+    stoerungSelection, blockSelection, startInlineRename, findSection, handleAddSection,
     handleDeleteSection, handleMoveSection,
   };
 })();
@@ -325,6 +345,7 @@ const prefixSelection = Editor.prefixSelection;
 const wrapSelection = Editor.wrapSelection;
 const codeSelection = Editor.codeSelection;
 const slideshowSelection = Editor.slideshowSelection;
+const stoerungSelection = Editor.stoerungSelection;
 const blockSelection = Editor.blockSelection;
 const startInlineRename = Editor.startInlineRename;
 const findSection = Editor.findSection;

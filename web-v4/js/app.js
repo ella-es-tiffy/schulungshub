@@ -4,7 +4,7 @@
    Depends on: all js/*.js modules, db-engine.js
    ================================================================ */
 
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.4.2";
 const DATA_KEY    = Crypto.DATA_KEY;
 
 /* ── Save Status ── */
@@ -256,11 +256,7 @@ function bindGlobalEvents() {
   $$(".header-nav-link[data-target]").forEach(link => {
     link.addEventListener("click", e => {
       e.preventDefault();
-      const target = document.getElementById(link.dataset.target);
-      if (target) {
-        target.classList.add("visible");
-        window.scrollTo({ top: target.offsetTop - 70, behavior: "smooth" });
-      }
+      navigateToSection(link.dataset.target);
     });
   });
 

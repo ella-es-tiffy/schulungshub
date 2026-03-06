@@ -99,6 +99,7 @@ const Search = (() => {
     }
 
     window.scrollTo({ top: el.offsetTop - 70, behavior: "instant" });
+    history.replaceState(null, "", "#" + target);
     el.classList.remove("snap-bounce");
     void el.offsetWidth;
     el.classList.add("snap-bounce");

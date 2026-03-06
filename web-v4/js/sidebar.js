@@ -58,11 +58,7 @@ const Sidebar = (() => {
     $$(".nav-link[data-target]").forEach(el => {
       el.addEventListener("click", e => {
         e.preventDefault();
-        const target = document.getElementById(el.dataset.target);
-        if (target) {
-          target.classList.add("visible");
-          window.scrollTo({ top: target.offsetTop - 70, behavior: "smooth" });
-        }
+        navigateToSection(el.dataset.target);
         closeMobileMenu();
       });
     });
