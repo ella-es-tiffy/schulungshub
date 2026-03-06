@@ -1528,7 +1528,7 @@ a:hover { opacity: 0.8; }
   margin-left: 22% !important;
   width: 75% !important;
   max-width: 800px;
-  padding: 40px 0 200px 0;
+  padding: 70px 0 200px 0;
 }
 
 /* ── Content Sections (FlyRing fade-in) ── */
@@ -1671,27 +1671,81 @@ p > code, li > code, td > code {
 
 /* ── Slideshow ── */
 .custom-slideshow {
-  border-radius: 12px;
+  position: relative;
+  margin: 16px 0;
+  border-radius: 8px;
   overflow: hidden;
+}
+.cs-track { position: relative; overflow: hidden; }
+.cs-slide {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-slide.cs-active {
+  position: relative;
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.cs-slide.cs-animating {
+  transition: transform .4s ease, opacity .4s ease;
+}
+.cs-slide img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0 auto;
+}
+.cs-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  line-height: 1;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.custom-slideshow:hover .cs-arrow { opacity: 1; }
+.cs-prev { left: 8px; }
+.cs-next { right: 8px; }
+.cs-dots {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.cs-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(128,128,128,0.3);
+  margin: 0 3px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.cs-dot.cs-active { background: var(--accent); }
+
+/* ── Störungsanzeigen ── */
+.stoerung {
   margin: 24px 0;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-[data-theme="dark"] .custom-slideshow {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-  border-color: rgba(255, 255, 255, 0.05);
-}
-.custom-slideshow .uk-slideshow-items { border-radius: 12px; }
-.custom-slideshow .uk-slideshow-items img {
-  object-fit: contain !important;
-  background: #1a1a2e;
-}
-.custom-slideshow .uk-dotnav > * > * {
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-.custom-slideshow .uk-dotnav > .uk-active > * {
-  background: var(--accent);
+  padding: 12px 18px;
+  color: #000;
+  font-weight: 600;
+  border-radius: 6px;
 }
 
 /* ── Alert Boxes (FlyRing-Pattern) ── */
