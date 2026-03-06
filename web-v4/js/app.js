@@ -359,18 +359,21 @@ function showNasBar(mode) {
       }
     });
   } else {
-    bar.innerHTML = `<span>Speichern nicht aktiv – data.db verbinden</span>
-      <button class="nas-bar-btn" id="btn-nas-connect">data.db bestätigen</button>`;
+    bar.innerHTML = `<span>Speichern nicht aktiv – DB verbinden</span>
+      <button class="nas-bar-btn" id="btn-nas-connect">Ordner wählen</button>
+      <button class="nas-bar-btn" id="btn-nas-file">DB-Datei wählen</button>`;
     document.body.prepend(bar);
+    async function onConnected() {
+      reloadState(); refreshAll(); bar.remove();
+      updateSaveStatus("saved"); notify("DB verbunden!", "success");
+    }
     document.getElementById("btn-nas-connect").addEventListener("click", async () => {
-      try {
-        await DbEngine.connect();
-        reloadState();
-        refreshAll();
-        bar.remove();
-        updateSaveStatus("saved");
-        notify("data.db verbunden!", "success");
-      } catch (e) {
+      try { await DbEngine.connect(); await onConnected(); } catch (e) {
+        if (e.name !== "AbortError") notify("Verbindung fehlgeschlagen: " + e.message, "danger");
+      }
+    });
+    document.getElementById("btn-nas-file").addEventListener("click", async () => {
+      try { await DbEngine.connectFile(); await onConnected(); } catch (e) {
         if (e.name !== "AbortError") notify("Verbindung fehlgeschlagen: " + e.message, "danger");
       }
     });

@@ -64,7 +64,7 @@ const Sidebar = (() => {
     });
 
     const addSec = $("#btn-add-section");
-    if (addSec) addSec.addEventListener("click", handleAddSection);
+    if (addSec) addSec.addEventListener("click", () => handleAddSection());
   }
 
   return { renderSidebar, bindSidebarEvents };

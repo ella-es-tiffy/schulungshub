@@ -9,7 +9,7 @@
    ================================================================ */
 
 const DbEngine = (() => {
-  const IDB_NAME = "schulungsHub_v4";
+  const IDB_NAME = "schulungsHub_demo";
   const IDB_STORE = "handles";
   const IDB_HANDLE_KEY = "dbFile";
   const IDB_DIR_KEY = "dbDir";
@@ -209,7 +209,7 @@ const DbEngine = (() => {
     for (const u of data.users || [])
       run("INSERT OR REPLACE INTO users (id,username,display_name,initials,role,active,password_hash,rfid_hash,created_at,created_by,must_change_password,theme,age,language_level,has_training,measure_start,motorik_level) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [
         u.id, u.username, u.display_name, u.initials || "", u.role, u.active !== false ? 1 : 0,
-        u.password_hash || "", u.rfid_hash || "", u.created_at || "", u.created_by || null,
+        u.password_hash || u.pw_hash || "", u.rfid_hash || "", u.created_at || "", u.created_by || null,
         u.must_change_password ? 1 : 0, u.theme || null,
         u.age != null ? u.age : null, u.language_level != null ? u.language_level : 3,
         u.has_training ? 1 : 0, u.measure_start || null,
@@ -439,7 +439,8 @@ const DbEngine = (() => {
     async connectFile() {
       const storedDir = await loadStoredDirHandle();
       const pickerOpts = {
-        types: [{ description: "SQLite Datenbank", accept: { "application/octet-stream": [".db"] } }],
+        types: [{ description: "SQLite Datenbank", accept: { "application/octet-stream": [".db", ".sqlite", ".sqlite3"] } }],
+        excludeAcceptAllOption: false,
         ...(storedDir ? { startIn: storedDir } : {}),
       };
 

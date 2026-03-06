@@ -169,19 +169,22 @@ function showNasBar(mode) {
     });
   } else {
     overlay.innerHTML = `<span>Speichern nicht aktiv</span>
-      <button class="btn-login" id="btn-nas-connect" style="width:auto;padding:6px 16px;margin:0;font-size:12px">data.db bestätigen</button>`;
+      <button class="btn-login" id="btn-nas-connect" style="width:auto;padding:6px 16px;margin:0;font-size:12px">Ordner wählen</button>
+      <button class="btn-login" id="btn-nas-file" style="width:auto;padding:6px 16px;margin:0;font-size:12px">DB-Datei wählen</button>`;
     overlay.className = "nas-bar-login";
+    async function onConnected() {
+      users = loadUsers();
+      populateSelect();
+      overlay.remove();
+    }
     document.getElementById("btn-nas-connect").addEventListener("click", async () => {
-      try {
-        await DbEngine.connect();
-        users = loadUsers();
-        populateSelect();
-        overlay.remove();
-      } catch (e) {
-        if (e.name !== "AbortError") {
-          const err = $("#login-error");
-          if (err) err.textContent = "Verbindung fehlgeschlagen: " + e.message;
-        }
+      try { await DbEngine.connect(); await onConnected(); } catch (e) {
+        if (e.name !== "AbortError") { const err = $("#login-error"); if (err) err.textContent = "Verbindung fehlgeschlagen: " + e.message; }
+      }
+    });
+    document.getElementById("btn-nas-file").addEventListener("click", async () => {
+      try { await DbEngine.connectFile(); await onConnected(); } catch (e) {
+        if (e.name !== "AbortError") { const err = $("#login-error"); if (err) err.textContent = "Verbindung fehlgeschlagen: " + e.message; }
       }
     });
   }

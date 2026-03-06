@@ -172,11 +172,11 @@ function renderPage() {
 
   // Content sections (3 levels)
   (S.db.content_sections || []).forEach(sec => {
-    pane.innerHTML += buildContentSectionHtml(sec);
+    pane.innerHTML += buildContentSectionHtml(sec, 0);
     (sec.children || []).forEach(ch => {
-      pane.innerHTML += buildContentSectionHtml(ch);
+      pane.innerHTML += buildContentSectionHtml(ch, 1);
       (ch.children || []).forEach(sub => {
-        pane.innerHTML += buildContentSectionHtml(sub);
+        pane.innerHTML += buildContentSectionHtml(sub, 2);
       });
     });
   });
@@ -273,17 +273,21 @@ function buildDashboardHtml() {
     </div>`;
 }
 
-function buildContentSectionHtml(sec) {
+function buildContentSectionHtml(sec, level = 0) {
   const md = sec.content_md || "";
   const html = renderMarkdown(md);
   const editBtn = canEdit()
     ? `<button class="section-edit-btn" data-section-id="${sec.id}" title="Bearbeiten"><span uk-icon="icon: pencil; ratio:0.8"></span></button>`
     : "";
+  const presentBtn = `<button class="section-present-btn" data-section-id="${sec.id}" title="Präsentation"><span uk-icon="icon: expand; ratio:0.8"></span></button>`;
   const printBtn = canVerify()
     ? `<button class="section-print-btn" data-section-id="${sec.id}" title="Drucken"><span uk-icon="icon: print; ratio:0.8"></span></button>`
     : "";
+  const addChildBtn = (canAdmin() && level < 2)
+    ? `<button class="section-admin-btn section-add-child-btn" data-section-id="${sec.id}" title="Unterpunkt hinzufügen"><span uk-icon="icon: plus; ratio:0.7"></span></button>`
+    : "";
   const adminBtns = canAdmin()
-    ? `<button class="section-admin-btn section-add-child-btn" data-section-id="${sec.id}" title="Unterpunkt hinzufügen"><span uk-icon="icon: plus; ratio:0.7"></span></button>
+    ? `${addChildBtn}
        <button class="section-admin-btn section-move-up-btn" data-section-id="${sec.id}" title="Nach oben"><span uk-icon="icon: chevron-up; ratio:0.7"></span></button>
        <button class="section-admin-btn section-move-down-btn" data-section-id="${sec.id}" title="Nach unten"><span uk-icon="icon: chevron-down; ratio:0.7"></span></button>
        <button class="section-admin-btn section-delete-btn" data-section-id="${sec.id}" title="Löschen"><span uk-icon="icon: trash; ratio:0.7"></span></button>`
@@ -291,7 +295,7 @@ function buildContentSectionHtml(sec) {
 
   const titleAttr = canAdmin() ? ` data-section-id="${sec.id}" title="Doppelklick zum Umbenennen"` : "";
   return `<div class="doc-section" id="sec-${sec.id}">
-    <h2><span class="section-title"${titleAttr}>${esc(sec.title)}</span> ${editBtn} ${printBtn} ${adminBtns}</h2>
+    <h2><span class="section-title"${titleAttr}>${esc(sec.title)}</span> ${presentBtn} ${editBtn} ${printBtn} ${adminBtns}</h2>
     <div class="md-content">${html || '<p style="opacity:0.4">Noch kein Inhalt.</p>'}</div>
   </div>`;
 }
@@ -542,6 +546,11 @@ function bindPageEvents() {
   }
 
 
+  // Present buttons
+  $$(".section-present-btn").forEach(btn => {
+    btn.addEventListener("click", () => presentSection(btn.dataset.sectionId));
+  });
+
   // Print buttons
   $$(".section-print-btn").forEach(btn => {
     btn.addEventListener("click", () => printSection(btn.dataset.sectionId));
@@ -716,13 +725,44 @@ function printSection(sectionId) {
   win.document.close();
 }
 
+/* ── 19. Presentation Mode ── */
+function presentSection(sectionId) {
+  const sec = findSection(sectionId);
+  if (!sec) return;
+
+  const existing = $("#present-overlay");
+  if (existing) existing.remove();
+
+  const html = renderMarkdown(sec.content_md || "");
+  const overlay = document.createElement("div");
+  overlay.id = "present-overlay";
+  overlay.innerHTML = `
+    <div class="present-close" id="present-close" title="Schliessen (Esc)">&times;</div>
+    <div class="present-content">
+      <div class="present-inner">
+        <h1>${esc(sec.title)}</h1>
+        ${html}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // Init slideshows inside overlay
+  if (typeof initSlideshows === "function") initSlideshows(overlay);
+
+  function close() { overlay.remove(); document.removeEventListener("keydown", onKey); }
+  function onKey(e) { if (e.key === "Escape") close(); }
+  document.addEventListener("keydown", onKey);
+  document.getElementById("present-close").addEventListener("click", close);
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+}
+
   return {
     navigateToSection, restoreHash,
     setupScrollSpy, setupFadeObserver, toggleSortMode, savePhaseOrder,
     movePhase, moveMachine, moveGoal, reassignGoal, renderPage,
     canDeleteExams, buildDashboardHtml, buildContentSectionHtml,
     buildPhaseHtml, buildGoalCard, buildHistoryHtml, buildDatenHtml,
-    bindPageEvents, printSection,
+    bindPageEvents, printSection, presentSection,
   };
 })();
 
